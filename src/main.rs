@@ -2,8 +2,6 @@ use clap::{App, Arg, SubCommand};
 use reqq::Reqq;
 
 fn main() {
-    println!("Hello, world!");
-
     let matches = App::new("reqq").version("1.0.0")
         .author("Seth Etter <mail@sethetter.com>")
         .about("You know..")

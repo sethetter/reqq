@@ -1,8 +1,9 @@
+pub mod request;
+pub mod env;
+
 use clap::ArgMatches;
 use std::fs;
 use walkdir::WalkDir;
-
-pub mod request;
 use request::Request;
 
 type Result<T> = std::result::Result<T, Error>;
@@ -33,7 +34,7 @@ impl Reqq {
         let reqs: Vec<Request> = fpaths.clone().into_iter().filter_map(|f| {
             if f.starts_with(env_folder) { return None }
             match fs::read_to_string(f.clone()) {
-                Ok(fbody) => Request::new(Request::name(dir.clone(), f.clone()), fbody).ok(),
+                Ok(fstr) => Some(Request::new(dir.clone(), f.to_string(), fstr)),
                 Err(_) => None,
             }
         }).collect();
@@ -50,10 +51,11 @@ impl Reqq {
         Ok(Reqq { reqs })
     }
 
+    /// Accepts parsed `clap::ArgMatches` and performs the requested action.
     pub fn run(&self, matches: ArgMatches) -> Result<()> {
         if let Some(_) = matches.subcommand_matches("list") {
             for r in self.reqs.clone() {
-                println!("{}", r.name);
+                println!("{}", r.name());
             }
             return Ok(());
         }
@@ -64,7 +66,7 @@ impl Reqq {
         Ok(())
     }
 
-    fn execute(&self, req: String) -> Result<()> {
+    fn execute(&self, _req: String) -> Result<()> {
         Ok(())
     }
 }

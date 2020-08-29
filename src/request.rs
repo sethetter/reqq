@@ -1,6 +1,8 @@
 use std::fmt;
 use regex::Regex;
+use crate::env::Env;
 
+// TODO: Use thiserror?
 #[derive(Debug)]
 pub enum Error {
     ParseError,
@@ -20,7 +22,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Request {
-    pub name: String,
+    pub dir: String,
+    pub fpath: String,
+    pub fstr: String, // TODO: More general type?
+    pub inner: Option<RequestInner>,
+}
+
+// TODO: Better name for this type.
+#[derive(Clone)]
+pub struct RequestInner {
     method: String,
     url: String,
     headers: Vec<(String, String)>,
@@ -29,8 +39,21 @@ pub struct Request {
 
 impl Request {
     /// Parses a new request file into a Request struct.
-    pub fn new(name: String, fstr: String) -> Result<Self> {
-        let mut lines = fstr.lines().into_iter();
+    pub fn new(dir: String, fpath: String, fstr: String) -> Self {
+        Request { dir, fpath, fstr, inner: None }
+    }
+
+    /// Generates a request name from a config directory and a filename.
+    pub fn name(&self) -> String {
+        self.fpath
+            .trim_start_matches(self.dir.as_str())
+            .trim_start_matches("/")
+            .trim_end_matches(".reqq")
+            .to_owned()
+    }
+
+    pub fn compile(&mut self, _env: Option<Env>) -> Result<()> {
+        let mut lines = self.fstr.lines().into_iter();
 
         // Get method and URL.
         let mut fline_parts = lines.next()
@@ -75,46 +98,55 @@ impl Request {
             }
         }
 
-        Ok(Request { name, url, method, headers, body, }.clone())
-    }
+        self.inner = Some(RequestInner{ url, method, headers, body });
 
-    /// Generates a request name from a config directory and a filename.
-    pub fn name(dir: String, fname: String) -> String {
-        fname
-            .trim_start_matches(dir.as_str())
-            .trim_start_matches("/")
-            .trim_end_matches(".reqq")
-            .to_owned()
+        Ok(())
     }
+}
+
+#[test]
+fn test_request_name() {
+    let dir = ".reqq".to_owned();
+    let fpath = ".reqq/nested/example-request.reqq".to_owned();
+    let fstr = "what".to_owned();
+
+    let req = Request::new(dir, fpath, fstr);
+    assert!(req.name() == "nested/example-request".to_owned());
 }
 
 #[test]
 fn test_request_file_no_body() {
-    let name = "test-request".to_owned();
-    let request_file = "GET https://example.com
+    let dir = ".reqq".to_owned();
+    let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
+    let fstr = "GET https://example.com
 x-example-header: lolwat".to_owned();
 
-    let req = Request::new(name.clone(), request_file).unwrap();
+    let mut req = Request::new(dir, fpath, fstr);
+    req.compile(None).expect("Failed to compile.");
+    let inner = req.clone().inner.unwrap();
 
-    assert!(req.name == name.to_owned());
-    assert!(req.method.as_str() == "GET");
-    assert!(req.headers[0].0 == "x-example-header".to_owned());
-    assert!(req.headers[0].1 == "lolwat".to_owned());
-    assert!(req.body == None);
+    assert!(inner.method.as_str() == "GET");
+    assert!(inner.url.as_str() == "https://example.com");
+    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.body == None);
 }
 
 #[test]
 fn test_request_file_with_body() {
-    let name = "test-request".to_owned();
-    let request_file = "POST https://example.com
+    let dir = ".reqq".to_owned();
+    let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
+    let fstr = "POST https://example.com
 x-example-header: lolwat
 request body content".to_owned();
 
-    let req = Request::new(name.clone(), request_file).unwrap();
+    let mut req = Request::new(dir, fpath, fstr);
+    req.compile(None).expect("Failed to compile.");
+    let inner = req.clone().inner.unwrap();
 
-    assert!(req.name == name.to_owned());
-    assert!(req.method.as_str() == "POST");
-    assert!(req.headers[0].0 == "x-example-header".to_owned());
-    assert!(req.headers[0].1 == "lolwat".to_owned());
-    assert!(req.body == Some("request body content".to_owned()));
+    assert!(inner.method.as_str() == "POST");
+    assert!(inner.url.as_str() == "https://example.com");
+    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.body == Some("request body content".to_owned()));
 }
