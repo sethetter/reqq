@@ -1,14 +1,17 @@
-use clap::ArgMatches;
 use std::fs;
+use clap::ArgMatches;
 use walkdir::WalkDir;
+use thiserror::Error;
 use crate::request::Request;
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, ReqqError>;
 
-#[derive(Debug)]
-pub enum Error {
-    ArgsError,
-    RequestError,
+#[derive(Debug, Error)]
+pub enum ReqqError {
+    #[error("Request not found: {0}")]
+    RequestNotFound(String),
+    // #[error("")]
+    // FailedToParseRequest { },
 }
 
 /// The top level app object which loads all available requests and environments
@@ -21,10 +24,11 @@ pub struct Reqq {
 }
 
 impl Reqq {
+    // TODO: Decouple the IO portions of this somehow?
     /// Takes a path to a reqq directory and builds out a Reqq object loaded with
     /// all available request and environment files.
     pub fn new(dir: String) -> Result<Self> {
-        let fpaths = get_all_fpaths(dir.clone())?;
+        let fpaths = get_all_fpaths(dir.clone());
         let env_folder = "envs/";
 
         // Get request files.
@@ -48,42 +52,30 @@ impl Reqq {
         Ok(Reqq { reqs })
     }
 
-    /// Accepts parsed `clap::ArgMatches` and performs the requested action.
-    pub fn run(&self, matches: ArgMatches) -> Result<()> {
-        if let Some(_) = matches.subcommand_matches("list") {
-            for r in self.reqs.clone() {
-                println!("{}", r.name());
-            }
-            return Ok(());
-        }
-
-        let req = matches.value_of("REQUEST").ok_or(Error::ArgsError)?;
-        self.execute(req.to_owned())?;
-
-        Ok(())
+    /// Provide a list of all available request names.
+    pub fn list_reqs(&self) -> Vec<String> {
+        self.reqs.clone().into_iter().map(|r| r.name()).collect()
     }
 
-    fn execute(&self, _req: String) -> Result<()> {
-        Ok(())
-    }
+    // /// Executes a specified request, optionally with an environment.
+    // fn execute(&self, _req: String, _env: Option<String>) -> Result<()> {
+    //     Ok(())
+    // }
 }
 
 // TODO: This is gross.
-fn get_all_fpaths(dir: String) -> Result<Vec<String>> {
-    Ok(
-        WalkDir::new(dir.clone()).into_iter()
-            .filter_map(|entry| {
-                match entry {
-                    Ok(e) => {
-                        let path_display = e.path().display().to_string();
-                        if path_display.as_str().trim_start_matches(&dir) == "" {
-                            return None;
-                        }
-                        Some(path_display)
-                    },
-                    Err(_) => None,
+fn get_all_fpaths(dir: String) -> Vec<String> {
+    WalkDir::new(dir.clone()).into_iter().filter_map(|entry| {
+        match entry {
+            Ok(e) => {
+                let path_display = e.path().display().to_string();
+                if path_display.as_str().trim_start_matches(&dir) == "" {
+                    return None;
                 }
-            })
-            .collect()
-    )
+                Some(path_display)
+            },
+            Err(_) => None,
+        }
+    })
+    .collect()
 }

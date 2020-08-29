@@ -1,7 +1,8 @@
 use clap::{App, Arg, SubCommand};
+use anyhow::Result;
 use reqq::Reqq;
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("reqq").version("1.0.0")
         .author("Seth Etter <mail@sethetter.com>")
         .about("You know..")
@@ -22,12 +23,19 @@ fn main() {
             .about("Lists available requests"))
         .get_matches();
 
-    let app = Reqq::new(".reqq".to_owned()).unwrap(); // maybe make this better?
+    let reqq = Reqq::new(".reqq".to_owned())?;
 
-    match app.run(matches) {
-        Err(_) => println!("failed!"),
-        Ok(_) => {},
-    };
+    if let Some(_) = matches.subcommand_matches("list") {
+        // List subcommand.
+        for req_name in reqq.list_reqs().into_iter() {
+            println!("{}", req_name);
+        }
+    } else {
+        // Default behavior of executing a request
+        // let req = matches.value_of("REQUEST").expect("Must provide a request.");
+        // reqq.execute(req.to_owned())?;
+    }
+    Ok(())
 }
 
 
