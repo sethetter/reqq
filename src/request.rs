@@ -1,6 +1,22 @@
+use std::fmt;
 use regex::Regex;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+#[derive(Debug)]
+pub enum Error {
+    ParseError,
+}
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::ParseError => write!(f, "Failed to parse the reqq file."),
+        }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Request {
@@ -18,12 +34,20 @@ impl Request {
 
         // Get method and URL.
         let mut fline_parts = lines.next()
-            .ok_or("failed parsing first line of request file")?
+            .ok_or("failed parsing first line of request file")
+            .map_err(|_| Error::ParseError)?
             .splitn(2, " ");
-        let method = fline_parts.next().ok_or("failed to get method")?.to_owned();
-        let url = fline_parts.next().ok_or("failed to get url")?.to_owned();
+        let method = fline_parts.next()
+            .ok_or("failed to get method")
+            .map_err(|_| Error::ParseError)?
+            .to_owned();
+        let url = fline_parts.next()
+            .ok_or("failed to get url")
+            .map_err(|_| Error::ParseError)?
+            .to_owned();
 
-        let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")?;
+        let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")
+            .map_err(|_| Error::ParseError)?;
 
         let mut headers: Vec<(String, String)> = vec![];
         let mut body: Option<String> = None;
