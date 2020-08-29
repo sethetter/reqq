@@ -14,12 +14,16 @@ fn main() {
     let matches = App::new("reqq").version("1.0.0")
         .author("Seth Etter <mail@sethetter.com>")
         .about("You know..")
+
+        // TODO: optional --dir option to override default of .reqq
+
         // .arg(Arg::with_name("env")
         //     .short("e")
         //     .long("env")
         //     .value_name("ENV")
         //     .help("Specifies the environment config file to use")
         //     .takes_value(true))
+
         .subcommand(SubCommand::with_name("list")
             .about("Lists available requests"))
         .get_matches();
@@ -45,14 +49,14 @@ impl Reqq {
     /// Takes a path to a reqq directory and builds out a Reqq object loaded with
     /// all available request and environment files.
     fn new(dir: String) -> Result<Self> {
-        let fpaths = get_all_fpaths(dir)?;
+        let fpaths = get_all_fpaths(dir.clone())?;
         let env_folder = "envs/";
 
         // Get request files.
         let reqs: Vec<Request> = fpaths.clone().into_iter().filter_map(|f| {
             if f.starts_with(env_folder) { return None }
             match fs::read_to_string(f.clone()) {
-                Ok(fbody) => Request::new(f.clone(), fbody).ok(),
+                Ok(fbody) => Request::new(Request::name(dir.clone(), f.clone()), fbody).ok(),
                 Err(_) => None,
             }
         }).collect();
@@ -71,7 +75,9 @@ impl Reqq {
 
     fn run(&self, matches: ArgMatches) -> Result<()> {
         if let Some(_) = matches.subcommand_matches("list") {
-            // list files in .reqq
+            for r in self.reqs.clone() {
+                println!("{}", r.name);
+            }
             return Ok(());
         }
 
@@ -131,6 +137,14 @@ impl Request {
 
         Ok(Request { name, url, method, headers, body, }.clone())
     }
+
+    fn name(dir: String, fname: String) -> String {
+        fname
+            .trim_start_matches(dir.as_str())
+            .trim_start_matches("/")
+            .trim_end_matches(".reqq")
+            .to_owned()
+    }
 }
 
 #[test]
@@ -169,15 +183,15 @@ struct Env {}
 
 fn get_all_fpaths(dir: String) -> Result<Vec<String>> {
     Ok(
-        WalkDir::new(dir).into_iter()
+        WalkDir::new(dir.clone()).into_iter()
             .filter_map(|entry| {
                 match entry {
                     Ok(e) => {
                         let path_display = e.path().display().to_string();
-                        match path_display.splitn(2, ".reqq/").nth(1) {
-                            Some(s) => Some(s.to_owned()),
-                            None => None,
+                        if path_display.as_str().trim_start_matches(&dir) == "" {
+                            return None;
                         }
+                        Some(path_display)
                     },
                     Err(_) => None,
                 }

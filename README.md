@@ -9,7 +9,7 @@ files inside of an `.reqq/envs/` folder.
 
 ## Usage
 
-Request file at `.reqq/create-user.txt`.
+Request file at `.reqq/create-user.reqq`.
 
 ```
 POST {{ baseUrl }}/api/v1/users
@@ -29,3 +29,8 @@ Then this command will issue the request!
 reqq --env=test create-user
 ```
 
+## Commands
+
+- `reqq [--env=<env>] <request>`, executes a request.
+- `reqq list`, lists all available requests.
+- `reqq envs`, lists available envs.
