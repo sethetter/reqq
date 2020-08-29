@@ -1,8 +1,10 @@
 use std::fs;
-use clap::ArgMatches;
 use walkdir::WalkDir;
 use thiserror::Error;
-use crate::request::Request;
+use crate::{
+    request::Request,
+    env::Env,
+};
 
 type Result<T> = std::result::Result<T, ReqqError>;
 
@@ -17,10 +19,9 @@ pub enum ReqqError {
 /// The top level app object which loads all available requests and environments
 /// so that various user actions can be performed with them.
 pub struct Reqq {
-    /// All available request files.
+    dir: String,
     reqs: Vec<Request>,
-    // /// All configured environments.
-    // envs: Vec<Env>,
+    envs: Vec<Env>,
 }
 
 impl Reqq {
@@ -35,7 +36,7 @@ impl Reqq {
         let reqs: Vec<Request> = fpaths.clone().into_iter().filter_map(|f| {
             if f.starts_with(env_folder) { return None }
             match fs::read_to_string(f.clone()) {
-                Ok(fstr) => Some(Request::new(dir.clone(), f.to_string(), fstr)),
+                Ok(fstr) => Some(Request::new(f.to_string(), fstr)),
                 Err(_) => None,
             }
         }).collect();
@@ -49,12 +50,12 @@ impl Reqq {
         //     }
         // }).collect();
 
-        Ok(Reqq { reqs })
+        Ok(Reqq { dir, reqs, envs: vec![] })
     }
 
     /// Provide a list of all available request names.
     pub fn list_reqs(&self) -> Vec<String> {
-        self.reqs.clone().into_iter().map(|r| r.name()).collect()
+        self.reqs.clone().into_iter().map(|r| r.name(self.dir.clone())).collect()
     }
 
     // /// Executes a specified request, optionally with an environment.

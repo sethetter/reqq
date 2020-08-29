@@ -22,7 +22,6 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Request {
-    pub dir: String,
     pub fpath: String,
     pub fstr: String, // TODO: More general type?
     pub inner: Option<RequestInner>,
@@ -39,14 +38,14 @@ pub struct RequestInner {
 
 impl Request {
     /// Parses a new request file into a Request struct.
-    pub fn new(dir: String, fpath: String, fstr: String) -> Self {
-        Request { dir, fpath, fstr, inner: None }
+    pub fn new(fpath: String, fstr: String) -> Self {
+        Request { fpath, fstr, inner: None }
     }
 
     /// Generates a request name from a config directory and a filename.
-    pub fn name(&self) -> String {
+    pub fn name(&self, dir: String) -> String {
         self.fpath
-            .trim_start_matches(self.dir.as_str())
+            .trim_start_matches(dir.as_str())
             .trim_start_matches("/")
             .trim_end_matches(".reqq")
             .to_owned()
@@ -112,18 +111,17 @@ fn test_request_name() {
     let fpath = ".reqq/nested/example-request.reqq".to_owned();
     let fstr = "what".to_owned();
 
-    let req = Request::new(dir, fpath, fstr);
-    assert!(req.name() == "nested/example-request".to_owned());
+    let req = Request::new(fpath, fstr);
+    assert!(req.name(dir) == "nested/example-request".to_owned());
 }
 
 #[test]
 fn test_request_file_no_body() {
-    let dir = ".reqq".to_owned();
     let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
     let fstr = "GET https://example.com
 x-example-header: lolwat".to_owned();
 
-    let mut req = Request::new(dir, fpath, fstr);
+    let mut req = Request::new(fpath, fstr);
     req.compile(None).expect("Failed to compile.");
     let inner = req.clone().inner.unwrap();
 
@@ -136,14 +134,13 @@ x-example-header: lolwat".to_owned();
 
 #[test]
 fn test_request_file_with_body() {
-    let dir = ".reqq".to_owned();
     let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
     let fstr = "POST https://example.com
 x-example-header: lolwat
 
 request body content".to_owned();
 
-    let mut req = Request::new(dir, fpath, fstr);
+    let mut req = Request::new(fpath, fstr);
     req.compile(None).expect("Failed to compile.");
     let inner = req.clone().inner.unwrap();
 
