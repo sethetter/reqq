@@ -1,30 +1,24 @@
-use std::fmt;
+use std::fs;
 use regex::Regex;
+use thiserror::Error;
 use crate::env::Env;
 
 // TODO: Use thiserror?
-#[derive(Debug)]
-enum Error {
+#[derive(Debug, Error)]
+pub enum RequestError {
+    #[error("Failed to read request file")]
+    ReadError,
+    #[error("Failed to parse request file")]
     ParseError,
 }
 
-impl std::error::Error for Error {}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::ParseError => write!(f, "Failed to parse the reqq file."),
-        }
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, RequestError>;
 
 #[derive(Clone)]
 pub struct Request {
     pub fpath: String,
-    pub fstr: String, // TODO: More general type?
-    pub inner: Option<RequestInner>,
+    fstr: Option<String>, // TODO: More general type?
+    inner: Option<RequestInner>,
 }
 
 // TODO: Better name for this type.
@@ -38,8 +32,8 @@ pub struct RequestInner {
 
 impl Request {
     /// Parses a new request file into a Request struct.
-    pub fn new(fpath: String, fstr: String) -> Self {
-        Request { fpath, fstr, inner: None }
+    pub fn new(fpath: String) -> Self {
+        Request { fpath, fstr: None, inner: None }
     }
 
     /// Generates a request name from a config directory and a filename.
@@ -51,27 +45,38 @@ impl Request {
             .to_owned()
     }
 
-    // TODO: Refactor this, use nom maybe?
-    // TODO: Compile with env support!
-    fn compile(&mut self, _env: Option<Env>) -> Result<()> {
-        let mut lines = self.fstr.lines().into_iter();
+    fn load(&mut self) -> Result<()> {
+        if self.fstr.is_none() {
+            let fstr = fs::read_to_string(self.fpath.clone())
+                .map_err(|_| RequestError::ReadError)?;
+            self.fstr = Some(fstr);
+        }
+        Ok(())
+    }
+
+    // TODO: Parse with env support!
+    fn parse(&mut self, _env: Option<Env>) -> Result<()> {
+        if self.fstr == None { self.load()?; }
+
+        let fstr = self.fstr.clone().unwrap();
+        let mut lines = fstr.lines().into_iter();
 
         // Get method and URL.
         let mut fline_parts = lines.next()
             .ok_or("failed parsing first line of request file")
-            .map_err(|_| Error::ParseError)?
+            .map_err(|_| RequestError::ParseError)?
             .splitn(2, " ");
         let method = fline_parts.next()
             .ok_or("failed to get method")
-            .map_err(|_| Error::ParseError)?
+            .map_err(|_| RequestError::ParseError)?
             .to_owned();
         let url = fline_parts.next()
             .ok_or("failed to get url")
-            .map_err(|_| Error::ParseError)?
+            .map_err(|_| RequestError::ParseError)?
             .to_owned();
 
         let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")
-            .map_err(|_| Error::ParseError)?;
+            .map_err(|_| RequestError::ParseError)?;
 
         let mut headers: Vec<(String, String)> = vec![];
         let mut body: Option<String> = None;
@@ -109,9 +114,8 @@ impl Request {
 fn test_request_name() {
     let dir = ".reqq".to_owned();
     let fpath = ".reqq/nested/example-request.reqq".to_owned();
-    let fstr = "what".to_owned();
 
-    let req = Request::new(fpath, fstr);
+    let req = Request::new(fpath);
     assert!(req.name(dir) == "nested/example-request".to_owned());
 }
 
@@ -121,8 +125,10 @@ fn test_request_file_no_body() {
     let fstr = "GET https://example.com
 x-example-header: lolwat".to_owned();
 
-    let mut req = Request::new(fpath, fstr);
-    req.compile(None).expect("Failed to compile.");
+    let mut req = Request::new(fpath);
+    req.fstr = Some(fstr);
+
+    req.parse(None).expect("Failed to parse request.");
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "GET");
@@ -140,8 +146,10 @@ x-example-header: lolwat
 
 request body content".to_owned();
 
-    let mut req = Request::new(fpath, fstr);
-    req.compile(None).expect("Failed to compile.");
+    let mut req = Request::new(fpath);
+    req.fstr = Some(fstr);
+
+    req.parse(None).expect("Failed to parse request.");
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "POST");

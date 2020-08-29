@@ -1,4 +1,3 @@
-use std::fs;
 use walkdir::WalkDir;
 use thiserror::Error;
 use crate::{
@@ -35,10 +34,7 @@ impl Reqq {
         // Get request files.
         let reqs: Vec<Request> = fpaths.clone().into_iter().filter_map(|f| {
             if f.starts_with(env_folder) { return None }
-            match fs::read_to_string(f.clone()) {
-                Ok(fstr) => Some(Request::new(f.to_string(), fstr)),
-                Err(_) => None,
-            }
+            Some(Request::new(f.to_string()))
         }).collect();
 
         // Get environments.
