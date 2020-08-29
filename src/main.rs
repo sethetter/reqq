@@ -21,14 +21,19 @@ fn main() -> Result<()> {
             .index(1))
         .subcommand(SubCommand::with_name("list")
             .about("Lists available requests"))
+        .subcommand(SubCommand::with_name("envs")
+            .about("Lists available environments"))
         .get_matches();
 
     let reqq = Reqq::new(".reqq".to_owned())?;
 
     if let Some(_) = matches.subcommand_matches("list") {
-        // List subcommand.
         for req_name in reqq.list_reqs().into_iter() {
             println!("{}", req_name);
+        }
+    } else if let Some(_) = matches.subcommand_matches("envs") {
+        for env_name in reqq.list_envs().into_iter() {
+            println!("{}", env_name);
         }
     } else {
         // Default behavior of executing a request
