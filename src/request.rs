@@ -4,7 +4,7 @@ use crate::env::Env;
 
 // TODO: Use thiserror?
 #[derive(Debug)]
-pub enum Error {
+enum Error {
     ParseError,
 }
 
@@ -18,7 +18,7 @@ impl fmt::Display for Error {
     }
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
 pub struct Request {
@@ -52,7 +52,9 @@ impl Request {
             .to_owned()
     }
 
-    pub fn compile(&mut self, _env: Option<Env>) -> Result<()> {
+    // TODO: Refactor this, use nom maybe?
+    // TODO: Compile with env support!
+    fn compile(&mut self, _env: Option<Env>) -> Result<()> {
         let mut lines = self.fstr.lines().into_iter();
 
         // Get method and URL.
@@ -138,6 +140,7 @@ fn test_request_file_with_body() {
     let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
     let fstr = "POST https://example.com
 x-example-header: lolwat
+
 request body content".to_owned();
 
     let mut req = Request::new(dir, fpath, fstr);
@@ -148,5 +151,5 @@ request body content".to_owned();
     assert!(inner.url.as_str() == "https://example.com");
     assert!(inner.headers[0].0 == "x-example-header".to_owned());
     assert!(inner.headers[0].1 == "lolwat".to_owned());
-    assert!(inner.body == Some("request body content".to_owned()));
+    assert!(inner.body == Some("\nrequest body content".to_owned()));
 }
