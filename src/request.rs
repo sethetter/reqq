@@ -2,6 +2,7 @@ use std::fs;
 use regex::Regex;
 use thiserror::Error;
 use handlebars::Handlebars;
+use reqwest::{Url, Method, header, blocking as r};
 use crate::env::{Env, EnvError};
 
 #[derive(Debug, Error)]
@@ -14,6 +15,12 @@ pub enum RequestError {
     ParseError,
     #[error(transparent)]
     EnvError(#[from] EnvError),
+    #[error(transparent)]
+    MethodError(#[from] http::method::InvalidMethod),
+    #[error(transparent)]
+    UrlError(#[from] url::ParseError),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
 }
 
 type Result<T> = std::result::Result<T, RequestError>;
@@ -136,7 +143,32 @@ impl Request {
     pub fn execute(&mut self, env: Option<Env>) -> Result<String> {
         self.parse(env)?;
 
-        Ok(self.fstr.clone().unwrap())
+        // TODO: actually send the request via reqwest.
+        let client = r::Client::new();
+        let mut req = client.request(
+            Method::from_bytes(self.inner.clone().unwrap().method.as_bytes())?,
+            Url::parse(self.inner.clone().unwrap().url.as_str())?,
+        );
+
+        for (key, val) in self.inner.clone().unwrap().headers {
+            let name = header::HeaderName::from_bytes(key.as_bytes())
+                .map_err(|_| RequestError::ParseError)?;
+            req = req.header(name, val);
+        }
+
+        if self.inner.clone().unwrap().body.is_some() {
+            req = req.body(self.inner.clone().unwrap().body.unwrap());
+        }
+
+        let resp = req.send()?;
+
+        let status = resp.status();
+        let header_lines: Vec<String> = resp.headers().iter().map(|(k, v)| {
+            format!("{}: {}", k, v.to_str().unwrap())
+        }).collect();
+        let body = resp.text()?;
+
+        Ok(format!("{}\n{}\n{}", status.as_str(), header_lines.join("\n"), body))
     }
 }
 
