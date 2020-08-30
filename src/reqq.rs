@@ -36,18 +36,22 @@ impl Reqq {
         let env_folder = format!("{}/{}", dir, "envs");
 
         // Get request files.
-        let reqs: Vec<Request> = fpaths.clone().into_iter().filter_map(|f| {
-            if f.starts_with(env_folder.as_str()) { return None }
-            Some(Request::new(f.to_string()))
-        }).collect();
+        let reqs: Vec<Request> = fpaths.clone().into_iter()
+            .filter_map(|f| {
+                if f.starts_with(env_folder.as_str()) {
+                    return None
+                }
+                Some(Request::new(f.to_string()))
+            }).collect();
 
         // Get environments.
-        let envs: Vec<Env> = fpaths.clone().into_iter().filter_map(|f| {
-            if !f.starts_with(env_folder.as_str()) || f == env_folder {
-                return None
-            }
-            Some(Env::new(f.to_string()))
-        }).collect();
+        let envs: Vec<Env> = fpaths.clone().into_iter()
+            .filter_map(|f| {
+                if !f.starts_with(env_folder.as_str()) || f.ends_with("/") {
+                    return None
+                }
+                Some(Env::new(f.to_string()))
+            }).collect();
 
         Ok(Reqq { dir, reqs, envs })
     }
@@ -63,7 +67,7 @@ impl Reqq {
     }
 
     /// Executes a specified request, optionally with an environment.
-    pub fn execute(&self, req_name: String, env_name: Option<String>) -> Result<()> {
+    pub fn execute(&self, req_name: String, env_name: Option<String>) -> Result<String> {
         let mut req = self.get_req(req_name.clone())?;
 
         let mut env = None;
@@ -74,9 +78,7 @@ impl Reqq {
         };
 
         let result = req.execute(env)?;
-        println!("{}", result);
-
-        Ok(())
+        Ok(result)
     }
 
     fn get_req(&self, name: String) -> Result<Request> {
@@ -98,6 +100,10 @@ fn get_all_fpaths(dir: String) -> Vec<String> {
     WalkDir::new(dir.clone()).into_iter().filter_map(|entry| {
         match entry {
             Ok(e) => {
+                if e.file_type().is_dir() {
+                    return None;
+                }
+
                 let path_display = e.path().display().to_string();
                 match path_display.as_str().trim_start_matches(&dir) {
                     "" => None,

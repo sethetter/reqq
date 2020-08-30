@@ -34,7 +34,7 @@ fn main() -> Result<()> {
     } else {
         let req = matches.value_of("request").expect("Must provide a request.");
         let env = matches.value_of("env").map(|v| v.to_owned());
-        reqq.execute(req.to_owned(), env)?;
+        print!("{}", reqq.execute(req.to_owned(), env)?);
     }
     Ok(())
 }
