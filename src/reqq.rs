@@ -70,10 +70,10 @@ fn get_all_fpaths(dir: String) -> Vec<String> {
         match entry {
             Ok(e) => {
                 let path_display = e.path().display().to_string();
-                if path_display.as_str().trim_start_matches(&dir) == "" {
-                    return None;
+                match path_display.as_str().trim_start_matches(&dir) {
+                    "" => None,
+                    _ => Some(path_display),
                 }
-                Some(path_display)
             },
             Err(_) => None,
         }
