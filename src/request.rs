@@ -80,7 +80,7 @@ impl Request {
         Ok(())
     }
 
-    pub fn parse(&mut self, env: Option<Env>) -> Result<()> {
+    fn parse(&mut self, env: Option<Env>) -> Result<()> {
         // Make sure we have the file content loaded.
         if self.fstr == None { self.load()?; }
 
@@ -141,6 +141,9 @@ impl Request {
         Ok(())
     }
 
+    /// Attempt to execute the request with an optional environment configuration file.
+    /// This will parse the request first, then send it using reqwest. The resulting
+    /// response is formatted and returned as a String.
     pub fn execute(&mut self, env: Option<Env>) -> Result<String> {
         self.parse(env)?;
 
