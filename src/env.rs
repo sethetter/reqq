@@ -10,8 +10,8 @@ pub struct Env {
 
 #[derive(Debug, Error)]
 pub enum EnvError {
-    #[error("Failed to read environment file")]
-    ReadError,
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
     #[error(transparent)]
     ParseError(#[from] serde_json::Error),
 }
@@ -34,15 +34,16 @@ impl Env {
 
     pub fn load(&mut self) -> Result<()> {
         if self.fstr.is_none() {
-            let fstr = fs::read_to_string(self.fpath.clone())
-                .map_err(|_| EnvError::ReadError)?;
+            let fstr = fs::read_to_string(self.fpath.clone())?;
             self.fstr = Some(fstr);
         }
         Ok(())
     }
 
     pub fn json(&self) -> Result<serde_json::Value> {
-        serde_json::from_str(self.fstr.clone().unwrap().as_str())
-            .map_err(|e| EnvError::ParseError(e))
+        let v = serde_json::from_str(
+            self.fstr.clone().unwrap().as_str()
+        )?;
+        Ok(v)
     }
 }

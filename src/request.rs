@@ -5,6 +5,7 @@ use handlebars::Handlebars;
 use reqwest::{Url, Method, header, blocking as r};
 use crate::env::{Env, EnvError};
 
+// TODO: Clean these up.
 #[derive(Debug, Error)]
 pub enum RequestError {
     #[error("Failed to read request file")]
@@ -143,7 +144,6 @@ impl Request {
     pub fn execute(&mut self, env: Option<Env>) -> Result<String> {
         self.parse(env)?;
 
-        // TODO: actually send the request via reqwest.
         let client = r::Client::new();
         let mut req = client.request(
             Method::from_bytes(self.inner.clone().unwrap().method.as_bytes())?,
