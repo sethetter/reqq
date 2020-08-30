@@ -1,9 +1,8 @@
-## Todos
+## TODOs
 
-- Proper error handling.
-- Request execution.
-- Environment support.
-
+- Better error handling, especially around request execution.
+- Better separation between parsing and execution.
+- Pretty print JSON responses.
 
 ## Ideas
 
