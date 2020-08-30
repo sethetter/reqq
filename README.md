@@ -7,6 +7,13 @@ Expects available requests to be in a local `.reqq` folder.
 Environments can be configured with arbitrary variables that can be embedded in request
 files inside of an `.reqq/envs/` folder.
 
+## Install
+
+```
+git clone git@github.com:sethetter/reqq.git
+cd reqq && cargo install --path .
+```
+
 ## Usage
 
 Request file at `.reqq/create-user.reqq`.
@@ -28,6 +35,11 @@ Then this command will issue the request!
 ```
 reqq --env=test create-user
 ```
+
+## `.reqq` files
+
+Reqq uses [handlebars](https://docs.rs/handlebars/3.4.0/handlebars/) as the templating
+engine, so anything that's fair game there is fair game in `.reqq` files.
 
 ## Commands
 
