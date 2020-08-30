@@ -15,8 +15,6 @@ pub enum ReqqError {
     EnvNotFound(String),
     #[error(transparent)]
     RequestError(#[from] RequestError),
-    // #[error("")]
-    // FailedToParseRequest { },
 }
 
 /// The top level app object which loads all available requests and environments
@@ -47,7 +45,7 @@ impl Reqq {
         // Get environments.
         let envs: Vec<Env> = fpaths.clone().into_iter()
             .filter_map(|f| {
-                if !f.starts_with(env_folder.as_str()) || f.ends_with("/") {
+                if !f.starts_with(env_folder.as_str()) {
                     return None
                 }
                 Some(Env::new(f.to_string()))
@@ -58,25 +56,24 @@ impl Reqq {
 
     /// Provide a list of all available request names.
     pub fn list_reqs(&self) -> Vec<String> {
-        self.reqs.clone().into_iter().map(|r| r.name(self.dir.clone())).collect()
+        self.reqs.clone().into_iter()
+            .map(|r| r.name(self.dir.clone())).collect()
     }
 
     /// Provide a list of all available environment names.
     pub fn list_envs(&self) -> Vec<String> {
-        self.envs.clone().into_iter().map(|r| r.name(self.dir.clone())).collect()
+        self.envs.clone().into_iter()
+            .map(|r| r.name(self.dir.clone())).collect()
     }
 
-    /// Executes a specified request, optionally with an environment.
-    pub fn execute(&self, req_name: String, env_name: Option<String>) -> Result<String> {
+    /// Executes a request specified by name, optionally with an environment.
+    pub fn execute(
+        &self,
+        req_name: String,
+        env_name: Option<String>,
+    ) -> Result<String> {
         let mut req = self.get_req(req_name.clone())?;
-
-        let mut env = None;
-        if env_name.is_some() {
-            let name = env_name.unwrap();
-            let e = self.get_env(name.clone())?;
-            env = Some(e);
-        };
-
+        let env = env_name.map(|n| self.get_env(n)).transpose()?;
         let result = req.execute(env)?;
         Ok(result)
     }
