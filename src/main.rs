@@ -6,17 +6,13 @@ fn main() -> Result<()> {
     let matches = App::new("reqq").version("1.0.0")
         .author("Seth Etter <mail@sethetter.com>")
         .about("You know..")
-
-        // TODO: optional --dir option to override default of .reqq
-
-        // .arg(Arg::with_name("env")
-        //     .short("e")
-        //     .long("env")
-        //     .value_name("ENV")
-        //     .help("Specifies the environment config file to use")
-        //     .takes_value(true))
-
-        .arg(Arg::with_name("REQUEST")
+        // TODO: optional --dir to override default of .reqq
+        .arg(Arg::with_name("env")
+            .short("e")
+            .long("env")
+            .help("Specifies the environment config file to use")
+            .takes_value(true))
+        .arg(Arg::with_name("request")
             .help("The name of the request to execute.")
             .index(1))
         .subcommand(SubCommand::with_name("list")
@@ -36,9 +32,9 @@ fn main() -> Result<()> {
             println!("{}", env_name);
         }
     } else {
-        // Default behavior of executing a request
-        // let req = matches.value_of("REQUEST").expect("Must provide a request.");
-        // reqq.execute(req.to_owned())?;
+        let req = matches.value_of("request").expect("Must provide a request.");
+        let env = matches.value_of("env").map(|v| v.to_owned());
+        reqq.execute(req.to_owned(), env)?;
     }
     Ok(())
 }

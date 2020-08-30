@@ -1,7 +1,7 @@
 use walkdir::WalkDir;
 use thiserror::Error;
 use crate::{
-    request::Request,
+    request::{Request, RequestError},
     env::Env,
 };
 
@@ -11,6 +11,10 @@ type Result<T> = std::result::Result<T, ReqqError>;
 pub enum ReqqError {
     #[error("Request not found: {0}")]
     RequestNotFound(String),
+    #[error("Environment not found: {0}")]
+    EnvNotFound(String),
+    #[error(transparent)]
+    RequestError(#[from] RequestError),
     // #[error("")]
     // FailedToParseRequest { },
 }
@@ -58,10 +62,36 @@ impl Reqq {
         self.envs.clone().into_iter().map(|r| r.name(self.dir.clone())).collect()
     }
 
-    // /// Executes a specified request, optionally with an environment.
-    // fn execute(&self, _req: String, _env: Option<String>) -> Result<()> {
-    //     Ok(())
-    // }
+    /// Executes a specified request, optionally with an environment.
+    pub fn execute(&self, req_name: String, env_name: Option<String>) -> Result<()> {
+        let mut req = self.get_req(req_name.clone())?;
+
+        let mut env = None;
+        if env_name.is_some() {
+            let name = env_name.unwrap();
+            let e = self.get_env(name.clone())?;
+            env = Some(e);
+        };
+
+        req.parse(env)?;
+
+        println!("{}", req.fstr.unwrap());
+
+        Ok(())
+    }
+
+    fn get_req(&self, name: String) -> Result<Request> {
+        self.reqs.clone().into_iter()
+            .find(|r| r.name(self.dir.clone()) == name)
+            .ok_or(ReqqError::RequestNotFound(name))
+    }
+
+    fn get_env(&self, name: String) -> Result<Env> {
+        self.envs.clone().into_iter()
+            .find(|e| e.name(self.dir.clone()) == name)
+            .ok_or(ReqqError::EnvNotFound(name))
+    }
+
 }
 
 // TODO: This is gross.

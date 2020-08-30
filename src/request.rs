@@ -1,15 +1,20 @@
 use std::fs;
 use regex::Regex;
 use thiserror::Error;
-use crate::env::Env;
+use handlebars::Handlebars;
+use crate::env::{Env, EnvError};
 
 // TODO: Use thiserror?
 #[derive(Debug, Error)]
 pub enum RequestError {
     #[error("Failed to read request file")]
     ReadError,
+    #[error(transparent)]
+    CompileError(#[from] handlebars::TemplateRenderError),
     #[error("Failed to parse request file")]
     ParseError,
+    #[error(transparent)]
+    EnvError(#[from] EnvError),
 }
 
 type Result<T> = std::result::Result<T, RequestError>;
@@ -17,7 +22,7 @@ type Result<T> = std::result::Result<T, RequestError>;
 #[derive(Clone)]
 pub struct Request {
     pub fpath: String,
-    fstr: Option<String>, // TODO: More general type?
+    pub fstr: Option<String>,
     inner: Option<RequestInner>,
 }
 
@@ -54,9 +59,27 @@ impl Request {
         Ok(())
     }
 
+    fn apply_env(&mut self, mut env: Env) -> Result<()> {
+        env.load()?;
+
+        let reg = Handlebars::new();
+        let result = reg.render_template(
+            self.fstr.clone().unwrap().as_str(),
+            &env.json()?,
+        )?;
+
+        self.fstr = Some(result);
+
+        Ok(())
+    }
+
     // TODO: Parse with env support!
-    fn parse(&mut self, _env: Option<Env>) -> Result<()> {
+    pub fn parse(&mut self, env: Option<Env>) -> Result<()> {
         if self.fstr == None { self.load()?; }
+
+        if let Some(env) = env {
+            self.apply_env(env)?;
+        }
 
         let fstr = self.fstr.clone().unwrap();
         let mut lines = fstr.lines().into_iter();
@@ -157,4 +180,28 @@ request body content".to_owned();
     assert!(inner.headers[0].0 == "x-example-header".to_owned());
     assert!(inner.headers[0].1 == "lolwat".to_owned());
     assert!(inner.body == Some("\nrequest body content".to_owned()));
+}
+
+#[test]
+fn test_request_with_env() {
+    let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
+    let fstr = "POST https://example.com
+x-example-header: {{ headerVal }}
+
+request {{ shwat }} content".to_owned();
+
+    let env_str = "{\"headerVal\": \"lolwat\", \"shwat\": 5 }".to_owned();
+    let env = Env { fpath: "".to_owned(), fstr: Some(env_str) };
+
+    let mut req = Request::new(fpath);
+    req.fstr = Some(fstr);
+
+    req.parse(Some(env)).expect("Failed to parse request.");
+    let inner = req.clone().inner.unwrap();
+
+    assert!(inner.method.as_str() == "POST");
+    assert!(inner.url.as_str() == "https://example.com");
+    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.body == Some("\nrequest 5 content".to_owned()));
 }
