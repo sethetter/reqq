@@ -73,9 +73,8 @@ impl Reqq {
             env = Some(e);
         };
 
-        req.parse(env)?;
-
-        println!("{}", req.fstr.unwrap());
+        let result = req.execute(env)?;
+        println!("{}", result);
 
         Ok(())
     }

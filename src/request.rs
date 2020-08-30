@@ -4,7 +4,6 @@ use thiserror::Error;
 use handlebars::Handlebars;
 use crate::env::{Env, EnvError};
 
-// TODO: Use thiserror?
 #[derive(Debug, Error)]
 pub enum RequestError {
     #[error("Failed to read request file")]
@@ -21,8 +20,8 @@ type Result<T> = std::result::Result<T, RequestError>;
 
 #[derive(Clone)]
 pub struct Request {
-    pub fpath: String,
-    pub fstr: Option<String>,
+    fpath: String,
+    fstr: Option<String>,
     inner: Option<RequestInner>,
 }
 
@@ -73,14 +72,16 @@ impl Request {
         Ok(())
     }
 
-    // TODO: Parse with env support!
     pub fn parse(&mut self, env: Option<Env>) -> Result<()> {
+        // Make sure we have the file content loaded.
         if self.fstr == None { self.load()?; }
 
+        // If an env is provided, parse the request file with it applied.
         if let Some(env) = env {
             self.apply_env(env)?;
         }
 
+        // Parse the request file.
         let fstr = self.fstr.clone().unwrap();
         let mut lines = fstr.lines().into_iter();
 
@@ -130,6 +131,12 @@ impl Request {
         self.inner = Some(RequestInner{ url, method, headers, body });
 
         Ok(())
+    }
+
+    pub fn execute(&mut self, env: Option<Env>) -> Result<String> {
+        self.parse(env)?;
+
+        Ok(self.fstr.clone().unwrap())
     }
 }
 
