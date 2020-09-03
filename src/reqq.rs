@@ -12,6 +12,7 @@ pub struct Reqq<'a> {
     dir: &'a str,
     reqs: Vec<Request>,
     envs: Vec<Env>,
+    raw: bool,
 }
 
 pub struct ReqqOpts<'a> {
@@ -47,7 +48,7 @@ impl Reqq<'_> {
                 Some(Env::new(f.to_string()))
             }).collect();
 
-        Ok(Reqq { dir, reqs, envs })
+        Ok(Reqq { dir, reqs, envs, raw: opts.raw })
     }
 
     /// Provide a list of all available request names.
@@ -71,7 +72,7 @@ impl Reqq<'_> {
         let mut req = self.get_req(req_name.clone())?;
         let env = env_name.map(|n| self.get_env(n)).transpose()?;
         let resp = req.execute(env)?;
-        let result = format_response(resp)?;
+        let result = format_response(resp, self.raw)?;
         Ok(result)
     }
 
