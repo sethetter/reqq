@@ -1,6 +1,6 @@
 use clap::{App, Arg, SubCommand};
 use anyhow::Result;
-use reqq::Reqq;
+use reqq::{Reqq, ReqqOpts};
 
 fn main() -> Result<()> {
     let matches = App::new("reqq").version("1.0.0")
@@ -12,6 +12,10 @@ fn main() -> Result<()> {
             .long("env")
             .help("Specifies the environment config file to use")
             .takes_value(true))
+        .arg(Arg::with_name("raw")
+            .short("r")
+            .long("raw")
+            .help("Only print the response body."))
         .arg(Arg::with_name("request")
             .help("The name of the request to execute.")
             .index(1))
@@ -21,7 +25,10 @@ fn main() -> Result<()> {
             .about("Lists available environments"))
         .get_matches();
 
-    let reqq = Reqq::new(".reqq".to_owned())?;
+    let reqq = Reqq::new(ReqqOpts {
+        dir: ".reqq",
+        raw: matches.is_present("raw"),
+    })?;
 
     if let Some(_) = matches.subcommand_matches("list") {
         for req_name in reqq.list_reqs().into_iter() {
@@ -34,7 +41,7 @@ fn main() -> Result<()> {
     } else {
         let req = matches.value_of("request").expect("Must provide a request.");
         let env = matches.value_of("env").map(|v| v.to_owned());
-        println!("{}", reqq.execute(req.to_owned(), env)?);
+        println!("{}", reqq.execute(req, env)?);
     }
     Ok(())
 }

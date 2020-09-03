@@ -40,9 +40,9 @@ impl Request {
     }
 
     /// Generates a request name from a config directory and a filename.
-    pub fn name(&self, dir: String) -> String {
+    pub fn name(&self, dir: &str) -> String {
         self.fpath
-            .trim_start_matches(dir.as_str())
+            .trim_start_matches(dir)
             .trim_start_matches("/")
             .trim_end_matches(".reqq")
             .to_owned()
@@ -160,7 +160,7 @@ impl Request {
 
 #[test]
 fn test_request_name() {
-    let dir = ".reqq".to_owned();
+    let dir = ".reqq";
     let fpath = ".reqq/nested/example-request.reqq".to_owned();
 
     let req = Request::new(fpath);

@@ -8,17 +8,24 @@ use anyhow::{anyhow, Result};
 
 /// The top level app object which loads all available requests and environments
 /// so that various user actions can be performed with them.
-pub struct Reqq {
-    dir: String,
+pub struct Reqq<'a> {
+    dir: &'a str,
     reqs: Vec<Request>,
     envs: Vec<Env>,
 }
 
-impl Reqq {
+pub struct ReqqOpts<'a> {
+    pub dir: &'a str,
+    pub raw: bool,
+}
+
+impl Reqq<'_> {
     // TODO: Decouple the IO portions of this somehow?
     /// Takes a path to a reqq directory and builds out a Reqq object loaded with
     /// all available request and environment files.
-    pub fn new(dir: String) -> Result<Self> {
+    pub fn new(opts: ReqqOpts<'static>) -> Result<Self> {
+        let dir = opts.dir.clone();
+
         let fpaths = get_all_fpaths(dir.clone());
         let env_folder = format!("{}/{}", dir, "envs");
 
@@ -52,13 +59,13 @@ impl Reqq {
     /// Provide a list of all available environment names.
     pub fn list_envs(&self) -> Vec<String> {
         self.envs.clone().into_iter()
-            .map(|r| r.name(self.dir.clone())).collect()
+            .map(|e| e.name(self.dir.clone())).collect()
     }
 
     /// Executes a request specified by name, optionally with an environment.
     pub fn execute(
         &self,
-        req_name: String,
+        req_name: &str,
         env_name: Option<String>,
     ) -> Result<String> {
         let mut req = self.get_req(req_name.clone())?;
@@ -68,7 +75,7 @@ impl Reqq {
         Ok(result)
     }
 
-    fn get_req(&self, name: String) -> Result<Request> {
+    fn get_req(&self, name: &str) -> Result<Request> {
         self.reqs.clone().into_iter()
             .find(|r| r.name(self.dir.clone()) == name)
             .ok_or(anyhow!("Request not found."))
@@ -83,7 +90,7 @@ impl Reqq {
 }
 
 // TODO: This is gross.
-fn get_all_fpaths(dir: String) -> Vec<String> {
+fn get_all_fpaths(dir: &str) -> Vec<String> {
     WalkDir::new(dir.clone()).into_iter().filter_map(|entry| {
         match entry {
             Ok(e) => {

@@ -15,12 +15,12 @@ impl Env {
     }
 
     // TODO: Pull this into some kind of Namer trait?
-    pub fn name(&self, dir: String) -> String {
+    pub fn name(&self, dir: &str) -> String {
         self.fpath
-            .trim_start_matches(dir.as_str())
+            .trim_start_matches(dir)
             .trim_start_matches("/envs/")
             .trim_end_matches(".json")
-            .to_owned()
+            .into()
     }
 
     pub fn load(&mut self) -> Result<()> {
