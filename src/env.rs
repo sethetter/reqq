@@ -2,7 +2,7 @@ use std::fs;
 
 #[derive(Clone)]
 pub struct Env {
-    // TODO: These shouldn't need to be public.
+    // TODO: Bummer that these only need to be public for `request` tests.
     pub fpath: String,
     pub fstr: Option<String>,
 }

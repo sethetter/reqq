@@ -1,6 +1,7 @@
 use reqwest::blocking::Response;
 use anyhow::Result;
 
+// TODO: Look at the content-type header and attempt to parse based on content.
 pub fn format_response(resp: Response, raw: bool) -> Result<String> {
     if raw {
         Ok(format!("{}", resp.text()?))

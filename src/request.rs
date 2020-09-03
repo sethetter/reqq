@@ -24,7 +24,6 @@ pub struct Request {
     inner: Option<RequestInner>,
 }
 
-// TODO: Better name for this type.
 #[derive(Clone)]
 pub struct RequestInner {
     method: Method,
