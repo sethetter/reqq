@@ -1,30 +1,21 @@
 use std::fs;
 use regex::Regex;
-use thiserror::Error;
 use handlebars::Handlebars;
-use reqwest::{Url, Method, header, blocking as r};
-use crate::env::{Env, EnvError};
-
-// TODO: Clean these up.
-#[derive(Debug, Error)]
-pub enum RequestError {
-    #[error("Failed to read request file")]
-    ReadError,
-    #[error(transparent)]
-    CompileError(#[from] handlebars::TemplateRenderError),
-    #[error("Failed to parse request file")]
-    ParseError,
-    #[error(transparent)]
-    EnvError(#[from] EnvError),
-    #[error(transparent)]
-    MethodError(#[from] http::method::InvalidMethod),
-    #[error(transparent)]
-    UrlError(#[from] url::ParseError),
-    #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
-}
-
-type Result<T> = std::result::Result<T, RequestError>;
+use reqwest::{
+    Url,
+    Method,
+    header::{
+        HeaderName,
+        HeaderValue,
+    },
+    blocking::{
+        Client as ReqwestClient,
+        Response,
+        RequestBuilder,
+    }
+};
+use anyhow::{anyhow, Result};
+use crate::env::Env;
 
 #[derive(Clone)]
 pub struct Request {
@@ -36,9 +27,9 @@ pub struct Request {
 // TODO: Better name for this type.
 #[derive(Clone)]
 pub struct RequestInner {
-    method: String,
-    url: String,
-    headers: Vec<(String, String)>,
+    method: Method,
+    url: Url,
+    headers: Vec<(HeaderName, HeaderValue)>,
     body: Option<String>,
 }
 
@@ -59,8 +50,7 @@ impl Request {
 
     fn load(&mut self) -> Result<()> {
         if self.fstr.is_none() {
-            let fstr = fs::read_to_string(self.fpath.clone())
-                .map_err(|_| RequestError::ReadError)?;
+            let fstr = fs::read_to_string(self.fpath.clone())?;
             self.fstr = Some(fstr);
         }
         Ok(())
@@ -95,22 +85,20 @@ impl Request {
 
         // Get method and URL.
         let mut fline_parts = lines.next()
-            .ok_or("failed parsing first line of request file")
-            .map_err(|_| RequestError::ParseError)?
+            .ok_or(anyhow!("Failed reading first line."))?
             .splitn(2, " ");
-        let method = fline_parts.next()
-            .ok_or("failed to get method")
-            .map_err(|_| RequestError::ParseError)?
-            .to_owned();
-        let url = fline_parts.next()
-            .ok_or("failed to get url")
-            .map_err(|_| RequestError::ParseError)?
-            .to_owned();
 
-        let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")
-            .map_err(|_| RequestError::ParseError)?;
+        let method_raw: &[u8] = fline_parts.next()
+            .ok_or(anyhow!("Failed reading first line."))?
+            .as_bytes();
+        let method = Method::from_bytes(method_raw)?;
 
-        let mut headers: Vec<(String, String)> = vec![];
+        let url_raw = fline_parts.next().ok_or(anyhow!("Failed reading first line."))?;
+        let url = Url::parse(url_raw)?;
+
+        let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")?;
+
+        let mut headers: Vec<(HeaderName, HeaderValue)> = vec![];
         let mut body: Option<String> = None;
 
         // Get headers.
@@ -123,10 +111,10 @@ impl Request {
 
             let mut parts = line.splitn(2, ": ");
 
-            headers.push((
-                parts.next().unwrap().to_string(),
-                parts.next().unwrap().to_string(),
-            ));
+            let name = HeaderName::from_bytes(parts.next().unwrap().as_bytes())?;
+            let val = HeaderValue::from_bytes(parts.next().unwrap().as_bytes())?;
+
+            headers.push((name, val));
         }
 
         // Get body.
@@ -144,34 +132,29 @@ impl Request {
     /// Attempt to execute the request with an optional environment configuration file.
     /// This will parse the request first, then send it using reqwest. The resulting
     /// response is formatted and returned as a String.
-    pub fn execute(&mut self, env: Option<Env>) -> Result<String> {
+    pub fn execute(&mut self, env: Option<Env>) -> Result<Response> {
         self.parse(env)?;
+        let resp = self.to_reqwest().send()?;
+        Ok(resp)
+    }
 
-        let client = r::Client::new();
+    fn to_reqwest(&self) -> RequestBuilder {
+        let client = ReqwestClient::new();
+
         let mut req = client.request(
-            Method::from_bytes(self.inner.clone().unwrap().method.as_bytes())?,
-            Url::parse(self.inner.clone().unwrap().url.as_str())?,
+            self.inner.clone().unwrap().method,
+            self.inner.clone().unwrap().url,
         );
 
         for (key, val) in self.inner.clone().unwrap().headers {
-            let name = header::HeaderName::from_bytes(key.as_bytes())
-                .map_err(|_| RequestError::ParseError)?;
-            req = req.header(name, val);
+            req = req.header(key, val);
         }
 
         if self.inner.clone().unwrap().body.is_some() {
             req = req.body(self.inner.clone().unwrap().body.unwrap());
         }
 
-        let resp = req.send()?;
-
-        let status = resp.status();
-        let header_lines: Vec<String> = resp.headers().iter().map(|(k, v)| {
-            format!("{}: {}", k, v.to_str().unwrap())
-        }).collect();
-        let body = resp.text()?;
-
-        Ok(format!("{}\n{}\n{}", status.as_str(), header_lines.join("\n"), body))
+        req
     }
 }
 
@@ -197,8 +180,8 @@ x-example-header: lolwat".to_owned();
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "GET");
-    assert!(inner.url.as_str() == "https://example.com");
-    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.url.as_str() == "https://example.com/");
+    assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
     assert!(inner.headers[0].1 == "lolwat".to_owned());
     assert!(inner.body == None);
 }
@@ -218,8 +201,8 @@ request body content".to_owned();
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "POST");
-    assert!(inner.url.as_str() == "https://example.com");
-    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.url.as_str() == "https://example.com/");
+    assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
     assert!(inner.headers[0].1 == "lolwat".to_owned());
     assert!(inner.body == Some("\nrequest body content".to_owned()));
 }
@@ -242,8 +225,8 @@ request {{ shwat }} content".to_owned();
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "POST");
-    assert!(inner.url.as_str() == "https://example.com");
-    assert!(inner.headers[0].0 == "x-example-header".to_owned());
+    assert!(inner.url.as_str() == "https://example.com/");
+    assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
     assert!(inner.headers[0].1 == "lolwat".to_owned());
     assert!(inner.body == Some("\nrequest 5 content".to_owned()));
 }

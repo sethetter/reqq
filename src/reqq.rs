@@ -1,21 +1,10 @@
 use walkdir::WalkDir;
-use thiserror::Error;
 use crate::{
-    request::{Request, RequestError},
+    request::Request,
     env::Env,
+    format::format_response,
 };
-
-type Result<T> = std::result::Result<T, ReqqError>;
-
-#[derive(Debug, Error)]
-pub enum ReqqError {
-    #[error("Request not found: {0}")]
-    RequestNotFound(String),
-    #[error("Environment not found: {0}")]
-    EnvNotFound(String),
-    #[error(transparent)]
-    RequestError(#[from] RequestError),
-}
+use anyhow::{anyhow, Result};
 
 /// The top level app object which loads all available requests and environments
 /// so that various user actions can be performed with them.
@@ -74,20 +63,21 @@ impl Reqq {
     ) -> Result<String> {
         let mut req = self.get_req(req_name.clone())?;
         let env = env_name.map(|n| self.get_env(n)).transpose()?;
-        let result = req.execute(env)?;
+        let resp = req.execute(env)?;
+        let result = format_response(resp)?;
         Ok(result)
     }
 
     fn get_req(&self, name: String) -> Result<Request> {
         self.reqs.clone().into_iter()
             .find(|r| r.name(self.dir.clone()) == name)
-            .ok_or(ReqqError::RequestNotFound(name))
+            .ok_or(anyhow!("Request not found."))
     }
 
     fn get_env(&self, name: String) -> Result<Env> {
         self.envs.clone().into_iter()
             .find(|e| e.name(self.dir.clone()) == name)
-            .ok_or(ReqqError::EnvNotFound(name))
+            .ok_or(anyhow!("Environment not found."))
     }
 
 }

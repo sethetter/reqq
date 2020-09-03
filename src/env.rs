@@ -1,5 +1,4 @@
 use std::fs;
-use thiserror::Error;
 
 #[derive(Clone)]
 pub struct Env {
@@ -8,15 +7,7 @@ pub struct Env {
     pub fstr: Option<String>,
 }
 
-#[derive(Debug, Error)]
-pub enum EnvError {
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error(transparent)]
-    ParseError(#[from] serde_json::Error),
-}
-
-type Result<T> = std::result::Result<T, EnvError>;
+type Result<T> = std::result::Result<T, anyhow::Error>;
 
 impl Env {
     pub fn new(fpath: String) -> Self {
