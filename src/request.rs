@@ -95,7 +95,7 @@ impl Request {
         let url_raw = fline_parts.next().ok_or(anyhow!("Failed reading first line."))?;
         let url = Url::parse(url_raw)?;
 
-        let header_regex = Regex::new(r"^[A-Za-z0-9-]+: .+$")?;
+        let header_regex = Regex::new(r"^[A-Za-z0-9-]+:\s*.+$")?;
 
         let mut headers: Vec<(HeaderName, HeaderValue)> = vec![];
         let mut body: Option<String> = None;
