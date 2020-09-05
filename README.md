@@ -10,8 +10,7 @@ files inside of an `.reqq/envs/` folder.
 ## Install
 
 ```
-git clone git@github.com:sethetter/reqq.git
-cd reqq && cargo install --path .
+cargo install reqq
 ```
 
 ## Usage
