@@ -1,5 +1,7 @@
 [package]
 name = "reqq"
+description = "A tool for sending predefined HTTP requests in your projects."
+license = "MIT"
 version = "0.1.0"
 authors = ["Seth Etter <mail@sethetter.com>"]
 edition = "2018"
