@@ -24,9 +24,6 @@ pub fn format_response(resp: Response, raw: bool) -> Result<String> {
         }).collect();
 
         let mut r = format!("{}\n{}", status.as_str(), header_lines.join("\n"));
-        if !r.ends_with("\n") {
-            r = r + "\n"
-        }
         r.push_str(body.as_str());
         Ok(r)
     }
@@ -53,7 +50,9 @@ fn get_content_type(headers: HeaderMap) -> Result<ContentType> {
 
     match content_type_header {
         Some((_, v)) => {
-            match v.to_str()?.to_lowercase().as_str() {
+            let v = v.to_str()?.to_lowercase();
+            let tokens:Vec<&str> = v.split(";").collect();
+            match tokens[0] {
                 "application/json" => {
                     Ok(ContentType::JSON)
                 },
