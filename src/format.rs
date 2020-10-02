@@ -24,6 +24,9 @@ pub fn format_response(resp: Response, raw: bool) -> Result<String> {
         }).collect();
 
         let mut r = format!("{}\n{}", status.as_str(), header_lines.join("\n"));
+        if !r.ends_with("\n") {
+            r = r + "\n"
+        }
         r.push_str(body.as_str());
         Ok(r)
     }

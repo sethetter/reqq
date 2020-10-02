@@ -42,7 +42,7 @@ fn main() -> Result<()> {
         let req = match matches.value_of("request") {
             Some(r) => r,
             None => {
-                println!("Must provide a request");
+                eprintln!("Must provide a request");
                 std::process::exit(1);
             }
         };
