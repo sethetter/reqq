@@ -50,7 +50,9 @@ fn get_content_type(headers: HeaderMap) -> Result<ContentType> {
 
     match content_type_header {
         Some((_, v)) => {
-            match v.to_str()?.to_lowercase().as_str() {
+            let v = v.to_str()?.to_lowercase();
+            let tokens:Vec<&str> = v.split(";").collect();
+            match tokens[0] {
                 "application/json" => {
                     Ok(ContentType::JSON)
                 },

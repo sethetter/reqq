@@ -39,7 +39,13 @@ fn main() -> Result<()> {
             println!("{}", env_name);
         }
     } else {
-        let req = matches.value_of("request").expect("Must provide a request.");
+        let req = match matches.value_of("request") {
+            Some(r) => r,
+            None => {
+                eprintln!("Must provide a request");
+                std::process::exit(1);
+            }
+        };
         let env = matches.value_of("env").map(|v| v.to_owned());
         println!("{}", reqq.execute(req, env)?);
     }
