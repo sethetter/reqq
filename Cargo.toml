@@ -3,7 +3,7 @@ name = "reqq"
 readme = "README.md"
 description = "A tool for sending predefined HTTP requests in your projects."
 license = "MIT"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Seth Etter <mail@sethetter.com>"]
 edition = "2018"
 
