@@ -1,4 +1,4 @@
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, ArgMatches, SubCommand};
 use anyhow::Result;
 use reqq::{Reqq, ReqqOpts};
 
@@ -30,26 +30,44 @@ fn main() -> Result<()> {
         raw: matches.is_present("raw"),
     })?;
 
-    if let Some(_) = matches.subcommand_matches("list") {
-        for req_name in reqq.list_reqs().into_iter() {
-            println!("{}", req_name);
-        }
-    } else if let Some(_) = matches.subcommand_matches("envs") {
-        for env_name in reqq.list_envs().into_iter() {
-            println!("{}", env_name);
-        }
-    } else {
-        let req = match matches.value_of("request") {
-            Some(r) => r,
-            None => {
-                eprintln!("Must provide a request");
-                std::process::exit(1);
+    match parse_command(matches.clone()) {
+        Cmd::List => {
+            for req_name in reqq.list_reqs().into_iter() {
+                println!("{}", req_name);
             }
-        };
-        let env = matches.value_of("env").map(|v| v.to_owned());
-        println!("{}", reqq.execute(req, env)?);
+        },
+        Cmd::Envs => {
+            for env_name in reqq.list_envs().into_iter() {
+                println!("{}", env_name);
+            }
+        },
+        Cmd::Request => {
+            let req = match matches.value_of("request") {
+                Some(r) => r,
+                None => {
+                    eprintln!("Must provide a request");
+                    std::process::exit(1);
+                }
+            };
+            let env = matches.value_of("env").map(|v| v.to_owned());
+            println!("{}", reqq.execute(req, env)?);
+        }
     }
     Ok(())
 }
 
+enum Cmd {
+    List,
+    Envs,
+    Request
+}
 
+fn parse_command(matches: ArgMatches) -> Cmd {
+    if let Some(_) = matches.subcommand_matches("list") {
+        Cmd::List
+    } else if let Some(_) = matches.subcommand_matches("envs") {
+        Cmd::Envs
+    } else {
+        Cmd::Request
+    }
+}
