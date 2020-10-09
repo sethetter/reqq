@@ -12,6 +12,11 @@ fn main() -> Result<()> {
             .long("env")
             .help("Specifies the environment config file to use")
             .takes_value(true))
+        .arg(Arg::with_name("dir")
+            .short("d")
+            .long("dir")
+            .help("Configuration directory to use")
+            .takes_value(true))
         .arg(Arg::with_name("raw")
             .short("r")
             .long("raw")
@@ -25,8 +30,10 @@ fn main() -> Result<()> {
             .about("Lists available environments"))
         .get_matches();
 
+    let conf_dir = matches.value_of("dir").unwrap_or(".reqq");
+    println!("{}", conf_dir);
     let reqq = Reqq::new(ReqqOpts {
-        dir: ".reqq",
+        dir: conf_dir,
         raw: matches.is_present("raw"),
     })?;
 
