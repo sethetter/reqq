@@ -30,10 +30,8 @@ fn main() -> Result<()> {
             .about("Lists available environments"))
         .get_matches();
 
-    let conf_dir = matches.value_of("dir").unwrap_or(".reqq");
-    println!("{}", conf_dir);
     let reqq = Reqq::new(ReqqOpts {
-        dir: conf_dir,
+        dir: matches.value_of("dir").unwrap_or(".reqq"),
         raw: matches.is_present("raw"),
     })?;
 
