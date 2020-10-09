@@ -12,6 +12,11 @@ fn main() -> Result<()> {
             .long("env")
             .help("Specifies the environment config file to use")
             .takes_value(true))
+        .arg(Arg::with_name("dir")
+            .short("d")
+            .long("dir")
+            .help("Configuration directory to use")
+            .takes_value(true))
         .arg(Arg::with_name("raw")
             .short("r")
             .long("raw")
@@ -26,7 +31,7 @@ fn main() -> Result<()> {
         .get_matches();
 
     let reqq = Reqq::new(ReqqOpts {
-        dir: ".reqq",
+        dir: matches.value_of("dir").unwrap_or(".reqq"),
         raw: matches.is_present("raw"),
     })?;
 

@@ -20,11 +20,11 @@ pub struct ReqqOpts<'a> {
     pub raw: bool,
 }
 
-impl Reqq<'_> {
+impl <'a>Reqq<'a> {
     // TODO: Decouple the IO portions of this somehow?
     /// Takes a path to a reqq directory and builds out a Reqq object loaded with
     /// all available request and environment files.
-    pub fn new(opts: ReqqOpts<'static>) -> Result<Self> {
+    pub fn new(opts: ReqqOpts<'a>) -> Result<Self> {
         let dir = opts.dir.clone();
 
         let fpaths = get_all_fpaths(dir.clone());
