@@ -3,7 +3,7 @@ use http::HeaderMap;
 use anyhow::Result;
 
 enum ContentType {
-    JSON,
+    Json,
     Unknown,
 }
 
@@ -13,11 +13,11 @@ pub fn format_response(resp: Response, raw: bool) -> Result<String> {
     let headers = resp.headers().clone();
     let content_type = get_content_type(headers.clone())?;
 
-    let raw_body: String = resp.text()?.into();
+    let raw_body: String = resp.text()?;
     let body = format_content_type(content_type, raw_body);
 
     if raw {
-        Ok(format!("{}", body.as_str()))
+        Ok(body)
     } else {
         let header_lines: Vec<String> = headers.iter().map(|(k, v)| {
             format!("{}: {}", k, v.to_str().unwrap())
@@ -31,7 +31,7 @@ pub fn format_response(resp: Response, raw: bool) -> Result<String> {
 
 fn format_content_type(content_type: ContentType, content: String) -> String {
     match content_type {
-        ContentType::JSON => {
+        ContentType::Json => {
             match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(v) => match serde_json::to_string_pretty(&v) {
                     Ok(out) => out,
@@ -51,10 +51,10 @@ fn get_content_type(headers: HeaderMap) -> Result<ContentType> {
     match content_type_header {
         Some((_, v)) => {
             let v = v.to_str()?.to_lowercase();
-            let tokens:Vec<&str> = v.split(";").collect();
+            let tokens:Vec<&str> = v.split(';').collect();
             match tokens[0] {
                 "application/json" => {
-                    Ok(ContentType::JSON)
+                    Ok(ContentType::Json)
                 },
                 _ => Ok(ContentType::Unknown),
             }

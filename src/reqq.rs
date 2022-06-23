@@ -25,9 +25,9 @@ impl <'a>Reqq<'a> {
     /// Takes a path to a reqq directory and builds out a Reqq object loaded with
     /// all available request and environment files.
     pub fn new(opts: ReqqOpts<'a>) -> Result<Self> {
-        let dir = opts.dir.clone();
+        let dir = opts.dir;
 
-        let fpaths = get_all_fpaths(dir.clone());
+        let fpaths = get_all_fpaths(dir);
         let env_folder = format!("{}/{}", dir, "envs");
 
         // Get request files.
@@ -36,16 +36,16 @@ impl <'a>Reqq<'a> {
                 if f.starts_with(env_folder.as_str()) {
                     return None
                 }
-                Some(Request::new(f.to_string()))
+                Some(Request::new(f))
             }).collect();
 
         // Get environments.
-        let envs: Vec<Env> = fpaths.clone().into_iter()
+        let envs: Vec<Env> = fpaths.into_iter()
             .filter_map(|f| {
                 if !f.starts_with(env_folder.as_str()) {
                     return None
                 }
-                Some(Env::new(f.to_string()))
+                Some(Env::new(f))
             }).collect();
 
         Ok(Reqq { dir, reqs, envs, raw: opts.raw })
@@ -54,13 +54,13 @@ impl <'a>Reqq<'a> {
     /// Provide a list of all available request names.
     pub fn list_reqs(&self) -> Vec<String> {
         self.reqs.clone().into_iter()
-            .map(|r| r.name(self.dir.clone())).collect()
+            .map(|r| r.name(self.dir)).collect()
     }
 
     /// Provide a list of all available environment names.
     pub fn list_envs(&self) -> Vec<String> {
         self.envs.clone().into_iter()
-            .map(|e| e.name(self.dir.clone())).collect()
+            .map(|e| e.name(self.dir)).collect()
     }
 
     /// Executes a request specified by name, optionally with an environment.
@@ -69,7 +69,7 @@ impl <'a>Reqq<'a> {
         req_name: &str,
         env_name: Option<String>,
     ) -> Result<String> {
-        let mut req = self.get_req(req_name.clone())?;
+        let mut req = self.get_req(req_name)?;
         let env = env_name.map(|n| self.get_env(n)).transpose()?;
         let resp = req.execute(env)?;
         let result = format_response(resp, self.raw)?;
@@ -78,21 +78,21 @@ impl <'a>Reqq<'a> {
 
     fn get_req(&self, name: &str) -> Result<Request> {
         self.reqs.clone().into_iter()
-            .find(|r| r.name(self.dir.clone()) == name)
-            .ok_or(anyhow!("Request not found."))
+            .find(|r| r.name(self.dir) == name)
+            .ok_or_else(|| anyhow!("Request not found."))
     }
 
     fn get_env(&self, name: String) -> Result<Env> {
         self.envs.clone().into_iter()
-            .find(|e| e.name(self.dir.clone()) == name)
-            .ok_or(anyhow!("Environment not found."))
+            .find(|e| e.name(self.dir) == name)
+            .ok_or_else(|| anyhow!("Environment not found."))
     }
 
 }
 
 // TODO: This is gross.
 fn get_all_fpaths(dir: &str) -> Vec<String> {
-    WalkDir::new(dir.clone()).into_iter().filter_map(|entry| {
+    WalkDir::new(dir).into_iter().filter_map(|entry| {
         match entry {
             Ok(e) => {
                 if e.file_type().is_dir() {

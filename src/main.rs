@@ -68,9 +68,9 @@ enum Cmd {
 }
 
 fn parse_command(matches: ArgMatches) -> Cmd {
-    if let Some(_) = matches.subcommand_matches("list") {
+    if matches.subcommand_matches("list").is_some() {
         Cmd::List
-    } else if let Some(_) = matches.subcommand_matches("envs") {
+    } else if matches.subcommand_matches("envs").is_some() {
         Cmd::Envs
     } else {
         Cmd::Request

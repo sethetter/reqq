@@ -42,7 +42,7 @@ impl Request {
     pub fn name(&self, dir: &str) -> String {
         self.fpath
             .trim_start_matches(dir)
-            .trim_start_matches("/")
+            .trim_start_matches('/')
             .trim_end_matches(".reqq")
             .to_owned()
     }
@@ -80,19 +80,19 @@ impl Request {
 
         // Parse the request file.
         let fstr = self.fstr.clone().unwrap();
-        let mut lines = fstr.lines().into_iter();
+        let mut lines = fstr.lines();
 
         // Get method and URL.
         let mut fline_parts = lines.next()
-            .ok_or(anyhow!("Failed reading first line."))?
-            .splitn(2, " ");
+            .ok_or_else(|| anyhow!("Failed reading first line."))?
+            .splitn(2, ' ');
 
         let method_raw: &[u8] = fline_parts.next()
-            .ok_or(anyhow!("Failed reading first line."))?
+            .ok_or_else(|| anyhow!("Failed reading first line."))?
             .as_bytes();
         let method = Method::from_bytes(method_raw)?;
 
-        let url_raw = fline_parts.next().ok_or(anyhow!("Failed reading first line."))?;
+        let url_raw = fline_parts.next().ok_or_else(|| anyhow!("Failed reading first line."))?;
         let url = Url::parse(url_raw)?;
 
         let header_regex = Regex::new(r"^[A-Za-z0-9-]+:\s*.+$")?;
@@ -101,7 +101,7 @@ impl Request {
         let mut body: Option<String> = None;
 
         // Get headers.
-        while let Some(line) = lines.next() {
+        for line in lines.by_ref() {
             if !header_regex.is_match(line) {
                 // If we have a line that isn't a header, it's the start of the body.
                 body = Some(line.to_owned());
@@ -118,7 +118,7 @@ impl Request {
 
         // Get body.
         if lines.clone().count() > 0 {
-            while let Some(line) = lines.next() {
+            for line in lines.by_ref() {
                 body = Some(format!("{}\n{}", body.unwrap(), line));
             }
         }
@@ -163,7 +163,7 @@ fn test_request_name() {
     let fpath = ".reqq/nested/example-request.reqq".to_owned();
 
     let req = Request::new(fpath);
-    assert!(req.name(dir) == "nested/example-request".to_owned());
+    assert!(req.name(dir) == "nested/example-request");
 }
 
 #[test]
@@ -181,7 +181,7 @@ x-example-header: lolwat".to_owned();
     assert!(inner.method.as_str() == "GET");
     assert!(inner.url.as_str() == "https://example.com/");
     assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
-    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.headers[0].1 == "lolwat");
     assert!(inner.body == None);
 }
 
@@ -202,7 +202,7 @@ request body content".to_owned();
     assert!(inner.method.as_str() == "POST");
     assert!(inner.url.as_str() == "https://example.com/");
     assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
-    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.headers[0].1 == "lolwat");
     assert!(inner.body == Some("\nrequest body content".to_owned()));
 }
 
@@ -226,6 +226,6 @@ request {{ shwat }} content".to_owned();
     assert!(inner.method.as_str() == "POST");
     assert!(inner.url.as_str() == "https://example.com/");
     assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
-    assert!(inner.headers[0].1 == "lolwat".to_owned());
+    assert!(inner.headers[0].1 == "lolwat");
     assert!(inner.body == Some("\nrequest 5 content".to_owned()));
 }
