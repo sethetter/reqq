@@ -11,6 +11,7 @@ fn main() -> Result<()> {
             .short("e")
             .long("env")
             .help("Specifies the environment config file to use")
+            .default_value("default")
             .takes_value(true))
         .arg(Arg::with_name("dir")
             .short("d")

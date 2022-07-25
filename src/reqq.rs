@@ -70,8 +70,8 @@ impl <'a>Reqq<'a> {
         env_name: Option<String>,
     ) -> Result<String> {
         let mut req = self.get_req(req_name)?;
-        let env = env_name.map(|n| self.get_env(n)).transpose()?;
-        let resp = req.execute(env)?;
+        let maybe_env = env_name.map(|n| self.get_env(n)).unwrap();
+        let resp = req.execute(maybe_env)?;
         let result = format_response(resp, self.raw)?;
         Ok(result)
     }
@@ -82,10 +82,9 @@ impl <'a>Reqq<'a> {
             .ok_or_else(|| anyhow!("Request not found."))
     }
 
-    fn get_env(&self, name: String) -> Result<Env> {
+    fn get_env(&self, name: String) -> Option<Env> {
         self.envs.clone().into_iter()
             .find(|e| e.name(self.dir) == name)
-            .ok_or_else(|| anyhow!("Environment not found."))
     }
 
 }

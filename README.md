@@ -35,6 +35,8 @@ Then this command will issue the request!
 reqq --env=test create-user
 ```
 
+If you provide no environment, it will attempt to load `.reqq/envs/default.json`.
+
 ## `.reqq` files
 
 Reqq uses [handlebars](https://docs.rs/handlebars/3.4.0/handlebars/) as the templating
