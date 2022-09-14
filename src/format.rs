@@ -23,7 +23,7 @@ pub fn format_response(resp: Response, raw: bool) -> Result<String> {
             format!("{}: {}", k, v.to_str().unwrap())
         }).collect();
 
-        let mut r = format!("{}\n{}", status.as_str(), header_lines.join("\n"));
+        let mut r = format!("{}\n{}\n", status.as_str(), header_lines.join("\n"));
         r.push_str(body.as_str());
         Ok(r)
     }
