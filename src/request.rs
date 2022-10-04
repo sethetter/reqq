@@ -1,21 +1,13 @@
-use std::fs;
-use regex::Regex;
-use handlebars::Handlebars;
-use reqwest::{
-    Url,
-    Method,
-    header::{
-        HeaderName,
-        HeaderValue,
-    },
-    blocking::{
-        Client as ReqwestClient,
-        Response,
-        RequestBuilder,
-    }
-};
-use anyhow::{anyhow, Result};
 use crate::env::Env;
+use anyhow::{anyhow, Result};
+use handlebars::Handlebars;
+use regex::Regex;
+use reqwest::{
+    blocking::{Client as ReqwestClient, RequestBuilder, Response},
+    header::{HeaderName, HeaderValue},
+    Method, Url,
+};
+use std::fs;
 
 #[derive(Clone)]
 pub struct Request {
@@ -35,7 +27,11 @@ pub struct RequestInner {
 impl Request {
     /// Parses a new request file into a Request struct.
     pub fn new(fpath: String) -> Self {
-        Request { fpath, fstr: None, inner: None }
+        Request {
+            fpath,
+            fstr: None,
+            inner: None,
+        }
     }
 
     /// Generates a request name from a config directory and a filename.
@@ -59,10 +55,7 @@ impl Request {
         env.load()?;
 
         let reg = Handlebars::new();
-        let result = reg.render_template(
-            self.fstr.clone().unwrap().as_str(),
-            &env.json()?,
-        )?;
+        let result = reg.render_template(self.fstr.clone().unwrap().as_str(), &env.json()?)?;
 
         self.fstr = Some(result);
 
@@ -71,7 +64,9 @@ impl Request {
 
     fn parse(&mut self, env: Option<Env>) -> Result<()> {
         // Make sure we have the file content loaded.
-        if self.fstr == None { self.load()?; }
+        if self.fstr == None {
+            self.load()?;
+        }
 
         // If an env is provided, parse the request file with it applied.
         if let Some(env) = env {
@@ -83,16 +78,20 @@ impl Request {
         let mut lines = fstr.lines();
 
         // Get method and URL.
-        let mut fline_parts = lines.next()
+        let mut fline_parts = lines
+            .next()
             .ok_or_else(|| anyhow!("Failed reading first line."))?
             .splitn(2, ' ');
 
-        let method_raw: &[u8] = fline_parts.next()
+        let method_raw: &[u8] = fline_parts
+            .next()
             .ok_or_else(|| anyhow!("Failed reading first line."))?
             .as_bytes();
         let method = Method::from_bytes(method_raw)?;
 
-        let url_raw = fline_parts.next().ok_or_else(|| anyhow!("Failed reading first line."))?;
+        let url_raw = fline_parts
+            .next()
+            .ok_or_else(|| anyhow!("Failed reading first line."))?;
         let url = Url::parse(url_raw)?;
 
         let header_regex = Regex::new(r"^[A-Za-z0-9-]+:\s*.+$")?;
@@ -123,7 +122,12 @@ impl Request {
             }
         }
 
-        self.inner = Some(RequestInner{ url, method, headers, body });
+        self.inner = Some(RequestInner {
+            url,
+            method,
+            headers,
+            body,
+        });
 
         Ok(())
     }
@@ -170,7 +174,8 @@ fn test_request_name() {
 fn test_request_file_no_body() {
     let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
     let fstr = "GET https://example.com
-x-example-header: lolwat".to_owned();
+x-example-header: lolwat"
+        .to_owned();
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);
@@ -191,7 +196,8 @@ fn test_request_file_with_body() {
     let fstr = "POST https://example.com
 x-example-header: lolwat
 
-request body content".to_owned();
+request body content"
+        .to_owned();
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);
@@ -212,10 +218,14 @@ fn test_request_with_env() {
     let fstr = "POST https://example.com
 x-example-header: {{ headerVal }}
 
-request {{ shwat }} content".to_owned();
+request {{ shwat }} content"
+        .to_owned();
 
     let env_str = "{\"headerVal\": \"lolwat\", \"shwat\": 5 }".to_owned();
-    let env = Env { fpath: "".to_owned(), fstr: Some(env_str) };
+    let env = Env {
+        fpath: "".to_owned(),
+        fstr: Some(env_str),
+    };
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);

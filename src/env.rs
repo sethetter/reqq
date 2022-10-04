@@ -32,9 +32,7 @@ impl Env {
     }
 
     pub fn json(&self) -> Result<serde_json::Value> {
-        let v = serde_json::from_str(
-            self.fstr.clone().unwrap().as_str()
-        )?;
+        let v = serde_json::from_str(self.fstr.clone().unwrap().as_str())?;
         Ok(v)
     }
 }
