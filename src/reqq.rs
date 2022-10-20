@@ -1,6 +1,7 @@
 use crate::{env::Env, format::format_response, request::Request};
 use anyhow::{anyhow, Result};
 use walkdir::WalkDir;
+use std::collections::HashMap;
 
 /// The top level app object which loads all available requests and environments
 /// so that various user actions can be performed with them.
@@ -76,10 +77,10 @@ impl<'a> Reqq<'a> {
     }
 
     /// Executes a request specified by name, optionally with an environment.
-    pub fn execute(&self, req_name: &str, env_name: Option<String>) -> Result<String> {
+    pub fn execute(&self, req_name: &str, env_name: Option<String>, extra_args: HashMap<String, serde_json::Value>) -> Result<String> {
         let mut req = self.get_req(req_name)?;
         let maybe_env = env_name.map(|n| self.get_env(n)).unwrap();
-        let resp = req.execute(maybe_env)?;
+        let resp = req.execute(maybe_env, extra_args)?;
         let result = format_response(resp, self.raw)?;
         Ok(result)
     }

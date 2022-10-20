@@ -1,4 +1,5 @@
 use std::fs;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Env {
@@ -31,8 +32,8 @@ impl Env {
         Ok(())
     }
 
-    pub fn json(&self) -> Result<serde_json::Value> {
-        let v = serde_json::from_str(self.fstr.clone().unwrap().as_str())?;
+    pub fn to_hashmap(&self) -> Result<HashMap<String, serde_json::Value>> {
+        let v:HashMap<String, serde_json::Value> = serde_json::from_str(self.fstr.clone().unwrap().as_str()).unwrap();
         Ok(v)
     }
 }
