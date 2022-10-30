@@ -8,6 +8,7 @@ use reqwest::{
     Method, Url,
 };
 use std::fs;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Request {
@@ -51,27 +52,40 @@ impl Request {
         Ok(())
     }
 
-    fn apply_env(&mut self, mut env: Env) -> Result<()> {
-        env.load()?;
+    fn apply_combined_args(&mut self,  env: Option<Env>, extra_args: HashMap<String, serde_json::Value>) -> Result<()> {
+        let mut combined_args: HashMap<String, serde_json::Value> = HashMap::new();
+        
+        if let Some(env) = env {
+            self.apply_env(env, &mut combined_args);
+        }
 
+        for args in extra_args {
+            combined_args.insert(args.0, args.1);
+        }
+
+        let json_value = handlebars::to_json(combined_args);
         let reg = Handlebars::new();
-        let result = reg.render_template(self.fstr.clone().unwrap().as_str(), &env.json()?)?;
+        let result = reg.render_template(self.fstr.clone().unwrap().as_str(), &json_value)?;
 
         self.fstr = Some(result);
 
         Ok(())
     }
 
-    fn parse(&mut self, env: Option<Env>) -> Result<()> {
+    fn apply_env(&mut self, mut env: Env, combined_args: &mut HashMap<String, serde_json::Value>) {
+        env.load().unwrap();
+        
+        combined_args.extend(env.to_hashmap().unwrap());
+    }
+
+    fn parse(&mut self, env: Option<Env>, extra_args: HashMap<String, serde_json::Value>) -> Result<()> {
         // Make sure we have the file content loaded.
         if self.fstr == None {
             self.load()?;
         }
 
-        // If an env is provided, parse the request file with it applied.
-        if let Some(env) = env {
-            self.apply_env(env)?;
-        }
+        // If env and/or cli args are provided, parse the request file with them applied.
+        self.apply_combined_args(env, extra_args)?;
 
         // Parse the request file.
         let fstr = self.fstr.clone().unwrap();
@@ -135,8 +149,8 @@ impl Request {
     /// Attempt to execute the request with an optional environment configuration file.
     /// This will parse the request first, then send it using reqwest. The resulting
     /// response is formatted and returned as a String.
-    pub fn execute(&mut self, env: Option<Env>) -> Result<Response> {
-        self.parse(env)?;
+    pub fn execute(&mut self, env: Option<Env>, extra_args: HashMap<String, serde_json::Value>) -> Result<Response> {
+        self.parse(env, extra_args)?;
         let resp = self.to_reqwest().send()?;
         Ok(resp)
     }
@@ -179,8 +193,9 @@ x-example-header: lolwat"
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);
+    let empty_extra_args: HashMap<String, serde_json::Value> = HashMap::new();
 
-    req.parse(None).expect("Failed to parse request.");
+    req.parse(None, empty_extra_args).expect("Failed to parse request.");
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "GET");
@@ -201,8 +216,10 @@ request body content"
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);
+    let empty_extra_args: HashMap<String, serde_json::Value> = HashMap::new();
 
-    req.parse(None).expect("Failed to parse request.");
+
+    req.parse(None, empty_extra_args).expect("Failed to parse request.");
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "POST");
@@ -229,8 +246,9 @@ request {{ shwat }} content"
 
     let mut req = Request::new(fpath);
     req.fstr = Some(fstr);
+    let empty_extra_args: HashMap<String, serde_json::Value> = HashMap::new();
 
-    req.parse(Some(env)).expect("Failed to parse request.");
+    req.parse(Some(env), empty_extra_args).expect("Failed to parse request.");
     let inner = req.clone().inner.unwrap();
 
     assert!(inner.method.as_str() == "POST");
@@ -238,4 +256,62 @@ request {{ shwat }} content"
     assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
     assert!(inner.headers[0].1 == "lolwat");
     assert!(inner.body == Some("\nrequest 5 content".to_owned()));
+}
+
+#[test]
+fn test_request_with_env_and_extra_args() {
+    let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
+    let fstr = "POST https://example.com
+x-example-header: {{ headerVal }}
+
+request {{ shwat }} {{ asdf }} content"
+        .to_owned();
+
+    let env_str = "{\"headerVal\": \"lolwat\", \"shwat\": 5 }".to_owned();
+    let env = Env {
+        fpath: "".to_owned(),
+        fstr: Some(env_str),
+    };
+
+    let mut req = Request::new(fpath);
+    req.fstr = Some(fstr);
+    let mut extra_args: HashMap<String, serde_json::Value> = HashMap::new();
+    let key = "asdf".to_owned();
+    let value = "thing";
+    extra_args.insert(key, serde_json::to_value(value).unwrap());
+
+    req.parse(Some(env), extra_args).expect("Failed to parse request.");
+    let inner = req.clone().inner.unwrap();
+
+    assert!(inner.method.as_str() == "POST");
+    assert!(inner.url.as_str() == "https://example.com/");
+    assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
+    assert!(inner.headers[0].1 == "lolwat");
+    assert!(inner.body == Some("\nrequest 5 thing content".to_owned()));
+}
+
+#[test]
+fn test_request_with_only_extra_args() {
+    let fpath = ".reqq/nested/exammple-request.reqq".to_owned();
+    let fstr = "POST https://example.com
+x-example-header: lolwat
+
+request {{ asdf }} content"
+        .to_owned();
+
+    let mut req = Request::new(fpath);
+    req.fstr = Some(fstr);
+    let mut extra_args: HashMap<String, serde_json::Value> = HashMap::new();
+    let key = "asdf".to_owned();
+    let value = "thing";
+    extra_args.insert(key, serde_json::to_value(value).unwrap());
+
+    req.parse(None, extra_args).expect("Failed to parse request.");
+    let inner = req.clone().inner.unwrap();
+
+    assert!(inner.method.as_str() == "POST");
+    assert!(inner.url.as_str() == "https://example.com/");
+    assert!(inner.headers[0].0 == HeaderName::from_bytes("x-example-header".as_bytes()).unwrap());
+    assert!(inner.headers[0].1 == "lolwat");
+    assert!(inner.body == Some("\nrequest thing content".to_owned()));
 }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::collections::HashMap;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use reqq::{Reqq, ReqqOpts};
 
@@ -28,6 +29,15 @@ fn main() -> Result<()> {
                 .short("r")
                 .long("raw")
                 .help("Only print the response body."),
+        )
+        .arg(
+            Arg::with_name("arg")
+                .short("a")
+                .long("arg")
+                .multiple(true)
+                .number_of_values(1)
+                .help("The optional args for the request.")
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("request")
@@ -63,7 +73,11 @@ fn main() -> Result<()> {
                 }
             };
             let env = matches.value_of("env").map(|v| v.to_owned());
-            println!("{}", reqq.execute(req, env)?);
+            let extra_args: HashMap<String, serde_json::Value> = match matches.values_of("arg") {
+                Some(cli_extra_args) => extract_extra_args(cli_extra_args),
+                None => HashMap::new(),
+            };
+            println!("{}", reqq.execute(req, env, extra_args)?);
         }
     }
     Ok(())
@@ -73,6 +87,19 @@ enum Cmd {
     List,
     Envs,
     Request,
+}
+
+fn extract_extra_args(cli_extra_args: clap::Values) -> HashMap<String, serde_json::Value> {
+    let mut extra_args: HashMap<String, serde_json::Value> = HashMap::new();
+    for arg in cli_extra_args {
+        let kv_pair: Vec<&str> = arg.splitn(2, "=").collect();
+        if kv_pair.len() < 2 {
+            eprintln!("At least one of the args provided is malformed.");
+            std::process::exit(1);
+        }
+        extra_args.insert(kv_pair[0].to_owned(), serde_json::to_value(kv_pair[1]).unwrap());
+    }
+    extra_args
 }
 
 fn parse_command(matches: ArgMatches) -> Cmd {
