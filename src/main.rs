@@ -1,11 +1,11 @@
 use anyhow::Result;
-use std::collections::HashMap;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use reqq::{Reqq, ReqqOpts};
+use std::collections::HashMap;
 
 fn main() -> Result<()> {
     let matches = App::new("reqq")
-        .version("1.0.0")
+        .version("0.3.0")
         .author("Seth Etter <mail@sethetter.com>")
         .about("You know..")
         // TODO: optional --dir to override default of .reqq
@@ -97,7 +97,10 @@ fn extract_extra_args(cli_extra_args: clap::Values) -> HashMap<String, serde_jso
             eprintln!("At least one of the args provided is malformed.");
             std::process::exit(1);
         }
-        extra_args.insert(kv_pair[0].to_owned(), serde_json::to_value(kv_pair[1]).unwrap());
+        extra_args.insert(
+            kv_pair[0].to_owned(),
+            serde_json::to_value(kv_pair[1]).unwrap(),
+        );
     }
     extra_args
 }
