@@ -35,6 +35,12 @@ Then this command will issue the request!
 reqq --env=test create-user
 ```
 
+Env config can also be provided through extra arguments CLI command. Env args provided on the CLI will override varibles of the same name in the env config file.
+
+```
+reqq -a arg1=val1 -a arg2=val2 create-user
+```
+
 If you provide no environment, it will attempt to load `.reqq/envs/default.json`.
 
 ## `.reqq` files
