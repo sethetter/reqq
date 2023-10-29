@@ -7,19 +7,30 @@ use std::collections::HashMap;
 #[command(name = "reqq", version = "0.3.0", author = "Seth Etter <sethetter@gmail.com>", about = "Like insomnia or postman, but a CLI.", long_about = None)]
 struct Args {
     /// The name of the request to execute.
-    // TODO: this should be required if a subcommand isn't specified.
     request_name: Option<String>,
 
     /// The environment file to load.
-    #[arg(short = 'e', long = "env", default_value = "default")]
+    #[arg(
+        short = 'e',
+        long = "env",
+        default_value = "default",
+    )]
     env: String,
 
     /// The directory containing the reqq files.
-    #[arg(short = 'd', long = "dir", default_value = ".reqq", global = true)]
+    #[arg(
+        short = 'd',
+        long = "dir",
+        default_value = ".reqq",
+        global = true,
+    )]
     dir: String,
 
     /// Only print the response body.
-    #[arg(short = 'r', long = "raw")]
+    #[arg(
+        short = 'r',
+        long = "raw",
+    )]
     raw: bool,
 
     /// The optional args for the request. Can provide multiple args.
