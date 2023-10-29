@@ -3,20 +3,20 @@ name = "reqq"
 readme = "README.md"
 description = "A tool for sending predefined HTTP requests in your projects."
 license = "MIT"
-version = "0.3.0"
-authors = ["Seth Etter <mail@sethetter.com>"]
+version = "0.4.0"
+authors = ["Seth Etter <sethetter@gmail.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-handlebars = "3.3.0"
+handlebars = "4.4.0"
 serde = "1.0.114"
 serde_json = "1.0.57"
-clap = "2.33.3"
+clap = { version = "4.4.7", features = ["derive"] }
 walkdir = "2.3.1"
 regex = "1.3.9"
 anyhow = "1.0.32"
-reqwest = { version = "0.10.8", features = ["blocking"] }
+reqwest = { version = "0.11.22", features = ["blocking"] }
 http = "0.2.1"
 url = "2.1.1"
