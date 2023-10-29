@@ -1,116 +1,112 @@
 use anyhow::Result;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{Parser, Subcommand};
 use reqq::{Reqq, ReqqOpts};
 use std::collections::HashMap;
 
+#[derive(Parser)]
+#[command(name = "reqq", version = "0.3.0", author = "Seth Etter <sethetter@gmail.com>", about = "Like insomnia or postman, but a CLI.", long_about = None)]
+struct Args {
+    /// The name of the request to execute.
+    request_name: Option<String>,
+
+    /// The environment file to load.
+    #[arg(
+        short = 'e',
+        long = "env",
+        default_value = "default",
+    )]
+    env: String,
+
+    /// The directory containing the reqq files.
+    #[arg(
+        short = 'd',
+        long = "dir",
+        default_value = ".reqq",
+        global = true,
+    )]
+    dir: String,
+
+    /// Only print the response body.
+    #[arg(
+        short = 'r',
+        long = "raw",
+    )]
+    raw: bool,
+
+    /// The optional args for the request. Can provide multiple args.
+    /// 
+    /// Example:
+    ///    reqq my-request -a id=1 -a name=foo
+    #[arg(
+        short = 'a',
+        long = "arg",
+        action = clap::ArgAction::Append,
+        value_parser = clap::builder::ValueParser::new(parse_extra_arg),
+    )]
+    extra_args: Vec<(String, String)>,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Lists available requests.
+    List,
+
+    /// Lists available environments.
+    Envs,
+}
+
 fn main() -> Result<()> {
-    let matches = App::new("reqq")
-        .version("0.3.0")
-        .author("Seth Etter <mail@sethetter.com>")
-        .about("You know..")
-        // TODO: optional --dir to override default of .reqq
-        .arg(
-            Arg::with_name("env")
-                .short("e")
-                .long("env")
-                .help("Specifies the environment config file to use")
-                .default_value("default")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("dir")
-                .short("d")
-                .long("dir")
-                .help("Configuration directory to use")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("raw")
-                .short("r")
-                .long("raw")
-                .help("Only print the response body."),
-        )
-        .arg(
-            Arg::with_name("arg")
-                .short("a")
-                .long("arg")
-                .multiple(true)
-                .number_of_values(1)
-                .help("The optional args for the request.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("request")
-                .help("The name of the request to execute.")
-                .index(1),
-        )
-        .subcommand(SubCommand::with_name("list").about("Lists available requests"))
-        .subcommand(SubCommand::with_name("envs").about("Lists available environments"))
-        .get_matches();
+    let args = Args::parse();
 
     let reqq = Reqq::new(ReqqOpts {
-        dir: matches.value_of("dir").unwrap_or(".reqq"),
-        raw: matches.is_present("raw"),
+        dir: args.dir.as_str(),
+        raw: args.raw,
     })?;
 
-    match parse_command(matches.clone()) {
-        Cmd::List => {
+    if args.command.is_none() && args.request_name.is_none() {
+        eprintln!("Error: 'request_name' is required when no subcommand is specified.");
+        std::process::exit(1);
+    }
+
+    match &args.command {
+        Some(Commands::List) => {
             for req_name in reqq.list_reqs().into_iter() {
                 println!("{}", req_name);
             }
         }
-        Cmd::Envs => {
+        Some(Commands::Envs) => {
             for env_name in reqq.list_envs().into_iter() {
                 println!("{}", env_name);
             }
         }
-        Cmd::Request => {
-            let req = match matches.value_of("request") {
-                Some(r) => r,
-                None => {
-                    eprintln!("Must provide a request");
-                    std::process::exit(1);
-                }
-            };
-            let env = matches.value_of("env").map(|v| v.to_owned());
-            let extra_args: HashMap<String, serde_json::Value> = match matches.values_of("arg") {
-                Some(cli_extra_args) => extract_extra_args(cli_extra_args),
-                None => HashMap::new(),
-            };
-            println!("{}", reqq.execute(req, env, extra_args)?);
+        None => {
+            let request_name = args.request_name.as_deref().expect("No request name provided.");
+            let extra_args = build_extra_args_map(args.extra_args);
+            println!("{}", reqq.execute(request_name, Some(args.env), extra_args)?);
         }
     }
     Ok(())
 }
 
-enum Cmd {
-    List,
-    Envs,
-    Request,
-}
-
-fn extract_extra_args(cli_extra_args: clap::Values) -> HashMap<String, serde_json::Value> {
+fn build_extra_args_map(cli_extra_args: Vec<(String, String)>) -> HashMap<String, serde_json::Value> {
     let mut extra_args: HashMap<String, serde_json::Value> = HashMap::new();
     for arg in cli_extra_args {
-        let kv_pair: Vec<&str> = arg.splitn(2, "=").collect();
-        if kv_pair.len() < 2 {
-            eprintln!("At least one of the args provided is malformed.");
-            std::process::exit(1);
-        }
         extra_args.insert(
-            kv_pair[0].to_owned(),
-            serde_json::to_value(kv_pair[1]).unwrap(),
+            arg.0.to_owned(),
+            serde_json::to_value(arg.1).unwrap(),
         );
     }
     extra_args
 }
 
-fn parse_command(matches: ArgMatches) -> Cmd {
-    if matches.subcommand_matches("list").is_some() {
-        Cmd::List
-    } else if matches.subcommand_matches("envs").is_some() {
-        Cmd::Envs
-    } else {
-        Cmd::Request
+fn parse_extra_arg(raw_arg: &str) -> Result<(String, String), std::io::Error> {
+    let kv_pair: Vec<&str> = raw_arg.splitn(2, "=").collect();
+    if kv_pair.len() < 2 {
+        eprintln!("At least one of the args provided is malformed.");
+        std::process::exit(1);
     }
+    Ok((kv_pair[0].to_owned(), kv_pair[1].to_owned()))
 }
