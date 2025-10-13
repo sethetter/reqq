@@ -6,7 +6,7 @@ use std::collections::HashMap;
 #[derive(Parser)]
 #[command(name = "reqq", version = "0.3.0", author = "Seth Etter <sethetter@gmail.com>", about = "Like insomnia or postman, but a CLI.", long_about = None)]
 struct Args {
-    /// The name of the request to execute.
+    /// The name of the request to execute (required when no subcommand is specified).
     request_name: Option<String>,
 
     /// The environment file to load.
