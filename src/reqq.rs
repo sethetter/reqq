@@ -126,7 +126,7 @@ fn get_all_fpaths(dir: &str) -> Vec<String> {
                 }
 
                 let path_display = e.path().display().to_string();
-                match path_display.as_str().trim_start_matches(&dir) {
+                match path_display.as_str().trim_start_matches(dir) {
                     "" => None,
                     _ => Some(path_display),
                 }
