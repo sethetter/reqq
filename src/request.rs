@@ -85,7 +85,7 @@ impl Request {
 
     fn parse(&mut self, env: Option<Env>, extra_args: HashMap<String, serde_json::Value>) -> Result<()> {
         // Make sure we have the file content loaded.
-        if self.fstr == None {
+        if self.fstr.is_none() {
             self.load()?;
         }
 
